@@ -260,8 +260,10 @@ policies and contribution forms [3].
  *   assert that func throws a DOMException or RangeException (as appropriate)
  *   with the given code.  If an object is passed for code instead of a string,
  *   checks that the thrown exception has a property called "name" that matches
- *   the property of code called "name".  Note, this function will probably be
- *   rewritten sometime to make more sense.
+ *   the property of code called "name".  Finally, if a literal null is passed
+ *   for /code/, it will only check that it throws, not what, you should
+ *   probably *never* use this.  Note, this function will probably be rewritten
+ *   sometime to make more sense.
  *
  * assert_unreached(description)
  *   asserts if called. Used to ensure that some codepath is *not* taken e.g.
@@ -753,6 +755,10 @@ policies and contribution forms [3].
         {
             if (e instanceof AssertionError) {
                 throw(e);
+            }
+            if (code === null)
+            {
+                return;
             }
             if (typeof code === "object")
             {
