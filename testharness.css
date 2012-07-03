@@ -23,7 +23,7 @@ section#summary {
     margin-bottom:1em;
 }
 
-table#results {
+table#results, table#report {
     border-collapse:collapse;
     table-layout:fixed;
     width:100%;
@@ -32,6 +32,11 @@ table#results {
 table#results th:first-child,
 table#results td:first-child {
     width:4em;
+}
+
+table#report th:not(:first-child),
+table#report td:not(:first-child) {
+    width:8em;
 }
 
 table#results th:last-child,
@@ -44,35 +49,42 @@ table#results.assertions td:last-child {
     width:35%;
 }
 
-table#results th {
+table#results th, table#report thead th {
     padding:0;
     padding-bottom:0.5em;
     border-bottom:medium solid black;
 }
 
-table#results td {
+table#report tfoot {
+    padding:0;
+    padding-top:0.5em;
+    border-top:medium solid black;
+    border-bottom:thin solid black;
+}
+
+table#results td, table#report td {
     padding:1em;
     padding-bottom:0.5em;
     border-bottom:thin solid black;
 }
 
-tr.pass > td:first-child {
+tr.pass > td:first-child, td.pass {
     color:green;
 }
 
-tr.fail > td:first-child {
+tr.fail > td:first-child, td.fail {
     color:red;
 }
 
-tr.timeout > td:first-child {
+tr.timeout > td:first-child, td.timeout {
     color:red;
 }
 
-tr.notrun > td:first-child {
+tr.notrun > td:first-child, td.notrun {
     color:blue;
 }
 
-.pass > td:first-child, .fail > td:first-child, .timeout > td:first-child, .notrun > td:first-child {
+table#result td:first-child, table#report .pass, table#report .fail, table#report .timeout, table#report .notrun {
     font-variant:small-caps;
 }
 
