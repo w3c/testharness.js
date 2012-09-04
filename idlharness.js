@@ -361,16 +361,16 @@ IdlArray.prototype.assert_type_is = function(value, type)
     if (type.sequence)
     {
         assert_true(Array.isArray(value), "is not array");
-        if (!type.idlType.length)
+        if (!value.length)
         {
+            // Nothing we can do.
             return;
         }
-        type = type.idlType[0];
+        this.assert_type_is(value[0], type.idlType.idlType);
+        return;
     }
-    else
-    {
-        type = type.idlType;
-    }
+
+    type = type.idlType;
 
     switch(type)
     {
@@ -577,8 +577,8 @@ IdlException.prototype.test_self = function()
         //"Its [[Class]] internal property is “Function”."
         //String() returns something implementation-dependent, because it calls
         //Function#toString.
-        assert_equals({}.toString.call(window[this.name]), "[object Function]",
-                      "{}.toString.call(" + this.name + ")");
+        assert_class_string(window[this.name], "Function",
+                            "class string of " + this.name);
 
         //TODO: Test 4.9.1.1. Exception interface object [[Call]] method (which
         //does not match browsers: //http://www.w3.org/Bugs/Public/show_bug.cgi?id=14885)
@@ -625,12 +625,12 @@ IdlException.prototype.test_self = function()
         //"The class string of an exception interface prototype object is the
         //concatenation of the exception’s identifier and the string
         //“Prototype”."
-        //String() and {}.toString.call() should be equivalent, since nothing
+        //String() should end up calling {}.toString, since nothing
         //defines a stringifier.
-        assert_equals({}.toString.call(window[this.name].prototype), "[object " + this.name + "Prototype]",
-                      "{}.toString.call(" + this.name + ")");
+        assert_class_string(window[this.name].prototype, this.name + "Prototype",
+                            "class string of " + this.name + ".prototype");
         assert_equals(String(window[this.name].prototype), "[object " + this.name + "Prototype]",
-                      "String(" + this.name + ")");
+                      "String(" + this.name + ".prototype)");
     }.bind(this), this.name + " exception: existence and properties of exception interface prototype object");
 
     test(function()
@@ -779,11 +779,11 @@ IdlException.prototype.test_members = function()
                 assert_throws(new TypeError(), function()
                 {
                     window[this.name].prototype[member.name];
-                }, "getting property on prototype object must throw TypeError");
+                }.bind(this), "getting property on prototype object must throw TypeError");
                 assert_throws(new TypeError(), function()
                 {
                     desc.get.call({});
-                }, "calling getter on wrong object type must throw TypeError");
+                }.bind(this), "calling getter on wrong object type must throw TypeError");
             }.bind(this), this.name + " exception: field " + member.name + " on exception interface prototype object");
         }
     }
@@ -830,7 +830,7 @@ IdlException.prototype.test_object = function(desc)
 
         //"The class string of the exception object must be the identifier of
         //the exception."
-        assert_equals({}.toString.call(obj), "[object " + this.name + "]", "{}.toString.call(" + desc + ")");
+        assert_class_string(obj, this.name, "class string of " + desc);
         //Stringifier is not defined for DOMExceptions, because message isn't
         //defined.
     }.bind(this), this.name + " must be represented by " + desc);
@@ -933,8 +933,7 @@ IdlInterface.prototype.test_self = function()
         //"Its [[Class]] internal property is “Function”."
         //String() returns something implementation-dependent, because it calls
         //Function#toString.
-        assert_equals({}.toString.call(window[this.name]), "[object Function]",
-                      "{}.toString.call(" + this.name + ")");
+        assert_class_string(window[this.name], "Function", "class string of " + this.name);
 
         if (!this.has_extended_attribute("Constructor"))
         {
@@ -946,11 +945,11 @@ IdlInterface.prototype.test_self = function()
             assert_throws(new TypeError(), function()
             {
                 window[this.name]();
-            }, "interface object didn't throw TypeError when called as a function");
+            }.bind(this), "interface object didn't throw TypeError when called as a function");
             assert_throws(new TypeError(), function()
             {
                 new window[this.name]();
-            }, "interface object didn't throw TypeError when called as a constructor");
+            }.bind(this), "interface object didn't throw TypeError when called as a constructor");
         }
     }.bind(this), this.name + " interface: existence and properties of interface object");
 
@@ -1043,10 +1042,10 @@ IdlInterface.prototype.test_self = function()
         //"The class string of an interface prototype object is the
         //concatenation of the interface’s identifier and the string
         //“Prototype”."
-        //String() and {}.toString.call() should be equivalent, since nothing
+        //String() should end up calling {}.toString, since nothing
         //defines a stringifier.
-        assert_equals({}.toString.call(window[this.name].prototype), "[object " + this.name + "Prototype]",
-                      "{}.toString.call(" + this.name + ".prototype)");
+        assert_class_string(window[this.name].prototype, this.name + "Prototype,
+                            "class string of " + this.name + ".prototype");
         assert_equals(String(window[this.name].prototype), "[object " + this.name + "Prototype]",
                       "String(" + this.name + ".prototype)");
     }.bind(this), this.name + " interface: existence and properties of interface prototype object");
@@ -1281,7 +1280,7 @@ IdlInterface.prototype.test_primary_interface_of = function(desc, obj, exception
     {
         assert_equals(exception, null, "Unexpected exception when evaluating object");
         assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-        assert_equals({}.toString.call(obj), "[object " + this.name + "]", "{}.toString.call(" + desc + ")");
+        assert_class_string(obj, this.name, "class string of " + desc);
         if (!this.members.some(function(member) { return member.stringifier || member.type == "stringifier"}))
         {
             assert_equals(String(obj), "[object " + this.name + "]", "String(" + desc + ")");
@@ -1367,7 +1366,7 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                     assert_throws(new TypeError(), function()
                     {
                         obj[member.name].apply(obj, args);
-                    }, "Called with " + i + " arguments");
+                    }.bind(this), "Called with " + i + " arguments");
 
                     args.push(create_suitable_object(member.arguments[i].type));
                 }
