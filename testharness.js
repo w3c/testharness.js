@@ -71,6 +71,9 @@ policies and contribution forms [3].
  *    author - Name and contact information for the author of the test in the
  *             format: "Name <email_addr>" or "Name http://contact/url"
  *
+ *    flags - space separated list of test flags in addition to any present in
+ *            the head metadata
+ *
  * == Asynchronous Tests ==
  *
  * Testing asynchronous features is somewhat more complex since the result of

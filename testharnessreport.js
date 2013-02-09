@@ -28,7 +28,7 @@ var metadata_generator = {
 
     currentMetadata: {},
     cachedMetadata: false,
-    metadataProperties: ['help', 'assert', 'author'],
+    metadataProperties: ['help', 'assert', 'author', 'flags'],
     
     error: function(message) {
         var messageElement = document.createElement('p');
@@ -337,6 +337,10 @@ var metadata_generator = {
                     message = 'Cached metadata out of sync. ';
                     showSource = true;
                 }
+            }
+            else if (1 < tests.length) {
+//                message = 'Cached metadata not present. ';
+                showSource = true;
             }
         }
         
