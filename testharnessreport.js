@@ -77,7 +77,7 @@ var metadata_generator = {
         for (var metaIndex = 0; metaIndex < this.metadataProperties.length;
              metaIndex++) {
             var meta = this.metadataProperties[metaIndex];
-            if (test.properties.hasOwnProperty(meta)) {
+            if (test.properties.hasOwnProperty(meta) && test.properties[meta]) {
                 if ('author' == meta) {
                     this.validateContact(test, meta);
                 }
