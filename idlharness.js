@@ -14,7 +14,7 @@ policies and contribution forms [3].
  *
  *   <script src=/resources/testharness.js></script>
  *   <script src=/resources/testharnessreport.js></script>
- *   <script src=/resources/webidl2.js></script>
+ *   <script src=/resources/WebIDLParser.js></script>
  *   <script src=/resources/idlharness.js></script>
  *
  * Then you'll need some type of IDLs.  Here's some script that can be run on a
@@ -221,7 +221,7 @@ IdlArray.prototype.add_idls = function(raw_idls)
 //@{
 {
     /** Entry point.  See documentation at beginning of file. */
-    this.internal_add_idls(WebIDL2.parse(raw_idls));
+    this.internal_add_idls(WebIDLParser.parse(raw_idls));
 };
 
 //@}
@@ -229,7 +229,7 @@ IdlArray.prototype.add_untested_idls = function(raw_idls)
 //@{
 {
     /** Entry point.  See documentation at beginning of file. */
-    var parsed_idls = WebIDL2.parse(raw_idls);
+    var parsed_idls = WebIDLParser.parse(raw_idls);
     for (var i = 0; i < parsed_idls.length; i++)
     {
         parsed_idls[i].untested = true;
@@ -258,7 +258,7 @@ IdlArray.prototype.internal_add_idls = function(parsed_idls)
      */
     parsed_idls.forEach(function(parsed_idl)
     {
-        if (parsed_idl.type == "interface" && parsed_idl.partial)
+        if (parsed_idl.type == "partialinterface")
         {
             this.partials.push(parsed_idl);
             return;
@@ -629,7 +629,10 @@ function IdlDictionary(obj)
      * The name (as a string) of the dictionary type we inherit from, or null
      * if there is none.
      */
-    this.base = obj.inheritance;
+    if (obj.inheritance.length > 1) {
+        throw "Multiple inheritance is no longer supported in WebIDL";
+    }
+    this.base = obj.inheritance.length ? obj.inheritance[0] : null;
 }
 
 //@}
@@ -668,7 +671,10 @@ function IdlExceptionOrInterface(obj)
      * The name (as a string) of the type we inherit from, or null if there is
      * none.
      */
-    this.base = obj.inheritance;
+    if (obj.inheritance.length > 1) {
+        throw "Multiple inheritance is no longer supported in WebIDL";
+    }
+    this.base = obj.inheritance.length ? obj.inheritance[0] : null;
 }
  
 //@}
@@ -1439,7 +1445,7 @@ IdlInterface.prototype.test_members = function()
 
                 // Make some suitable arguments
                 var args = member.arguments.map(function(arg) {
-                    return create_suitable_object(arg.idlType);
+                    return create_suitable_object(arg.type);
                 });
 
                 // "Let O be a value determined as follows:
@@ -1463,7 +1469,7 @@ IdlInterface.prototype.test_members = function()
                     window[this.name].prototype[member.name].apply({}, args);
                 }, "calling operation with this = {} didn't throw TypeError");
             }.bind(this), this.name + " interface: operation " + member.name +
-            "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
+            "(" + member.arguments.map(function(m) { return m.type.idlType; }) +
             ")");
         }
         // TODO: check more member types, like stringifier
@@ -1636,10 +1642,10 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                         obj[member.name].apply(obj, args);
                     }.bind(this), "Called with " + i + " arguments");
 
-                    args.push(create_suitable_object(member.arguments[i].idlType));
+                    args.push(create_suitable_object(member.arguments[i].type));
                 }
             }.bind(this), this.name + " interface: calling " + member.name +
-            "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
+            "(" + member.arguments.map(function(m) { return m.type.idlType; }) +
             ") on " + desc + " with too few arguments must throw TypeError");
         }
     }
