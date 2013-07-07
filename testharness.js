@@ -1752,16 +1752,16 @@ policies and contribution forms [3].
 
                                         if (harness_status.status === harness_status.ERROR)
                                         {
-                                            rv[0].push("Harness encountered an error:")
-                                            rv.push(["pre", {}, harness_status.message])
+                                            rv[0].push("Harness encountered an error:");
+                                            rv.push(["pre", {}, harness_status.message]);
                                         }
-                                        else if(harness_status.status === harness_status.TIMEOUT)
+                                        else if (harness_status.status === harness_status.TIMEOUT)
                                         {
-                                            rv[0].push("Harness timed out.")
+                                            rv[0].push("Harness timed out.");
                                         }
                                         else
                                         {
-                                            rv[0].push("Harness got an unexpected status.")
+                                            rv[0].push("Harness got an unexpected status.");
                                         }
 
                                         return rv;
