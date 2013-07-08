@@ -1402,31 +1402,6 @@ policies and contribution forms [3].
                  {
                      callback(this_obj.properties);
                  });
-        forEach_windows(
-                function(w, is_same_origin)
-                {
-                    if(is_same_origin && w.start_callback)
-                    {
-                        try
-                        {
-                            w.start_callback(this_obj.properties);
-                        }
-                        catch(e)
-                        {
-                            if (debug)
-                            {
-                                throw(e);
-                            }
-                        }
-                    }
-                    if (supports_post_message(w) && w !== self)
-                    {
-                        w.postMessage({
-                            type: "start",
-                            properties: this_obj.properties
-                        }, "*");
-                    }
-                });
     };
 
     Tests.prototype.result = function(test)
@@ -1447,31 +1422,6 @@ policies and contribution forms [3].
                 function(callback)
                 {
                     callback(test, this_obj);
-                });
-
-        forEach_windows(
-                function(w, is_same_origin)
-                {
-                    if(is_same_origin && w.result_callback)
-                    {
-                        try
-                        {
-                            w.result_callback(test);
-                        }
-                        catch(e)
-                        {
-                            if(debug) {
-                                throw e;
-                            }
-                        }
-                    }
-                    if (supports_post_message(w) && w !== self)
-                    {
-                        w.postMessage({
-                            type: "result",
-                            test: test.structured_clone()
-                        }, "*");
-                    }
                 });
         this.processing_callbacks = false;
         if (this_obj.all_done())
@@ -1517,33 +1467,6 @@ policies and contribution forms [3].
                  {
                      callback(this_obj.tests, this_obj.status);
                  });
-
-        forEach_windows(
-                function(w, is_same_origin)
-                {
-                    if(is_same_origin && w.completion_callback)
-                    {
-                        try
-                        {
-                            w.completion_callback(this_obj.tests, this_obj.status);
-                        }
-                        catch(e)
-                        {
-                            if (debug)
-                            {
-                                throw e;
-                            }
-                        }
-                    }
-                    if (supports_post_message(w) && w !== self)
-                    {
-                        w.postMessage({
-                            type: "complete",
-                            tests: tests,
-                            status: this_obj.status.structured_clone()
-                        }, "*");
-                    }
-                });
     };
 
     var tests = new Tests();
@@ -2178,59 +2101,11 @@ policies and contribution forms [3].
         target[components[components.length - 1]] = object;
     }
 
-    function forEach_windows(callback) {
-        // Iterate of the the windows [self ... top, opener]. The callback is passed
-        // two objects, the first one is the windows object itself, the second one
-        // is a boolean indicating whether or not its on the same origin as the
-        // current window.
-        var cache = forEach_windows.result_cache;
-        if (!cache) {
-            cache = [[self, true]];
-            var w = self;
-            var i = 0;
-            var so;
-            var origins = location.ancestorOrigins;
-            while (w != w.parent)
-            {
-                w = w.parent;
-                // In WebKit, calls to parent windows' properties that aren't on the same
-                // origin cause an error message to be displayed in the error console but
-                // don't throw an exception. This is a deviation from the current HTML5
-                // spec. See: https://bugs.webkit.org/show_bug.cgi?id=43504
-                // The problem with WebKit's behavior is that it pollutes the error console
-                // with error messages that can't be caught.
-                //
-                // This issue can be mitigated by relying on the (for now) proprietary
-                // `location.ancestorOrigins` property which returns an ordered list of
-                // the origins of enclosing windows. See:
-                // http://trac.webkit.org/changeset/113945.
-                if(origins) {
-                    so = (location.origin == origins[i]);
-                }
-                else
-                {
-                    so = is_same_origin(w);
-                }
-                cache.push([w, so]);
-                i++;
-            }
-            w = window.opener;
-            if(w)
-            {
-                // window.opener isn't included in the `location.ancestorOrigins` prop.
-                // We'll just have to deal with a simple check and an error msg on WebKit
-                // browsers in this case.
-                cache.push([w, is_same_origin(w)]);
-            }
-            forEach_windows.result_cache = cache;
-        }
+})();
 
-        forEach(cache,
-                function(a)
-                {
-                    callback.apply(null, a);
-                });
-    }
+(function () {
+
+    var debug = false;
 
     function is_same_origin(w) {
         try {
@@ -2280,5 +2155,143 @@ policies and contribution forms [3].
         }
         return supports;
     }
-})();
+
+    function forEach_windows(callback) {
+        // Iterate of the the windows [self ... top, opener]. The callback is passed
+        // two objects, the first one is the windows object itself, the second one
+        // is a boolean indicating whether or not its on the same origin as the
+        // current window.
+        var cache = forEach_windows.result_cache;
+        if (!cache) {
+            cache = [[self, true]];
+            var w = self;
+            var i = 0;
+            var so;
+            var origins = location.ancestorOrigins;
+            while (w != w.parent)
+            {
+                w = w.parent;
+                // In WebKit, calls to parent windows' properties that aren't on the same
+                // origin cause an error message to be displayed in the error console but
+                // don't throw an exception. This is a deviation from the current HTML5
+                // spec. See: https://bugs.webkit.org/show_bug.cgi?id=43504
+                // The problem with WebKit's behavior is that it pollutes the error console
+                // with error messages that can't be caught.
+                //
+                // This issue can be mitigated by relying on the (for now) proprietary
+                // `location.ancestorOrigins` property which returns an ordered list of
+                // the origins of enclosing windows. See:
+                // http://trac.webkit.org/changeset/113945.
+                if(origins) {
+                    so = (location.origin == origins[i]);
+                }
+                else
+                {
+                    so = is_same_origin(w);
+                }
+                cache.push([w, so]);
+                i++;
+            }
+            w = window.opener;
+            if(w)
+            {
+                // window.opener isn't included in the `location.ancestorOrigins` prop.
+                // We'll just have to deal with a simple check and an error msg on WebKit
+                // browsers in this case.
+                cache.push([w, is_same_origin(w)]);
+            }
+            forEach_windows.result_cache = cache;
+        }
+
+        var j = -1;
+        while (++j < cache.length) {
+          callback.apply(null, cache[j]);
+        }
+    }
+
+    add_start_callback(function (properties) {
+        forEach_windows(
+                function(w, is_same_origin)
+                {
+                    if(is_same_origin && w.start_callback)
+                    {
+                        try
+                        {
+                            w.start_callback(properties);
+                        }
+                        catch(e)
+                        {
+                            if (debug)
+                            {
+                                throw(e);
+                            }
+                        }
+                    }
+                    if (supports_post_message(w) && w !== self)
+                    {
+                        w.postMessage({
+                            type: "start",
+                            properties: properties
+                        }, "*");
+                    }
+                });
+    });
+
+    add_result_callback(function (test) {
+        forEach_windows(
+                function(w, is_same_origin)
+                {
+                    if(is_same_origin && w.result_callback)
+                    {
+                        try
+                        {
+                            w.result_callback(test);
+                        }
+                        catch(e)
+                        {
+                            if(debug) {
+                                throw e;
+                            }
+                        }
+                    }
+                    if (supports_post_message(w) && w !== self)
+                    {
+                        w.postMessage({
+                            type: "result",
+                            test: test.structured_clone()
+                        }, "*");
+                    }
+                });    
+    });
+    
+    add_completion_callback(function (tests, status) {
+        forEach_windows(
+                function(w, is_same_origin)
+                {
+                    if(is_same_origin && w.completion_callback)
+                    {
+                        try
+                        {
+                            w.completion_callback(tests, status);
+                        }
+                        catch(e)
+                        {
+                            if (debug)
+                            {
+                                throw e;
+                            }
+                        }
+                    }
+                    if (supports_post_message(w) && w !== self)
+                    {
+                        w.postMessage({
+                            type: "complete",
+                            tests: tests,
+                            status: status.structured_clone()
+                        }, "*");
+                    }
+                });
+    });
+
+}());
 // vim: set expandtab shiftwidth=4 tabstop=4:
