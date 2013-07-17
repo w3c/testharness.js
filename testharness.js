@@ -366,34 +366,6 @@ policies and contribution forms [3].
       test_timeout:2000
     };
 
-    var xhtml_ns = "http://www.w3.org/1999/xhtml";
-
-    // script_prefix is used by Output.prototype.show_results() to figure out
-    // where to get testharness.css from.  It's enclosed in an extra closure to
-    // not pollute the library's namespace with variables like "src".
-    var script_prefix = null;
-    (function ()
-    {
-        var scripts = document.getElementsByTagName("script");
-        for (var i = 0; i < scripts.length; i++)
-        {
-            if (scripts[i].src)
-            {
-                var src = scripts[i].src;
-            }
-            else if (scripts[i].href)
-            {
-                //SVG case
-                var src = scripts[i].href.baseVal;
-            }
-            if (src && src.slice(src.length - "testharness.js".length) === "testharness.js")
-            {
-                script_prefix = src.slice(0, src.length - "testharness.js".length);
-                break;
-            }
-        }
-    })();
-
     /*
      * API functions
      */
@@ -435,7 +407,7 @@ policies and contribution forms [3].
         }
         return test_obj;
     }
-
+    
     function setup(func_or_properties, maybe_properties)
     {
         var func = null;
@@ -449,7 +421,11 @@ policies and contribution forms [3].
             properties = func_or_properties;
         }
         tests.setup(func, properties);
-        output.setup(properties);
+        forEach (tests.setup_callbacks,
+                 function(callback)
+                 {
+                     callback(properties);
+                 });
     }
 
     function done() {
@@ -1281,6 +1257,7 @@ policies and contribution forms [3].
         this.timeout_length = settings.timeout;
         this.timeout_id = null;
 
+        this.setup_callbacks = [];
         this.start_callbacks = [];
         this.test_done_callbacks = [];
         this.all_done_callbacks = [];
@@ -1402,31 +1379,6 @@ policies and contribution forms [3].
                  {
                      callback(this_obj.properties);
                  });
-        forEach_windows(
-                function(w, is_same_origin)
-                {
-                    if(is_same_origin && w.start_callback)
-                    {
-                        try
-                        {
-                            w.start_callback(this_obj.properties);
-                        }
-                        catch(e)
-                        {
-                            if (debug)
-                            {
-                                throw(e);
-                            }
-                        }
-                    }
-                    if (supports_post_message(w) && w !== self)
-                    {
-                        w.postMessage({
-                            type: "start",
-                            properties: this_obj.properties
-                        }, "*");
-                    }
-                });
     };
 
     Tests.prototype.result = function(test)
@@ -1448,7 +1400,315 @@ policies and contribution forms [3].
                 {
                     callback(test, this_obj);
                 });
+        this.processing_callbacks = false;
+        if (this_obj.all_done())
+        {
+            this_obj.complete();
+        }
+    };
 
+    Tests.prototype.complete = function() {
+        if (this.phase === this.phases.COMPLETE) {
+            return;
+        }
+        this.phase = this.phases.COMPLETE;
+        var this_obj = this;
+        var i = -1;
+        while (++i < this.tests.length) {
+          var x = this.tests[i];
+          if(x.status === x.NOTRUN)
+          {
+              this_obj.notify_result(x);
+          }
+        }
+        this.notify_complete();
+    };
+
+    Tests.prototype.notify_complete = function()
+    {
+        clearTimeout(this.timeout_id);
+        var this_obj = this;
+        var tests = map(this_obj.tests,
+                        function(test)
+                        {
+                            return test.structured_clone();
+                        });
+        if (this.status.status === null)
+        {
+            this.status.status = this.status.OK;
+        }
+
+        forEach (this.all_done_callbacks,
+                 function(callback)
+                 {
+                     callback(this_obj.tests, this_obj.status);
+                 });
+    };
+
+    var tests = new Tests();
+
+    window.onerror = function(msg) {
+        if (!tests.allow_uncaught_exception)
+        {
+            tests.status.status = tests.status.ERROR;
+            tests.status.message = msg;
+            tests.complete();
+        }
+    }
+
+    function timeout() {
+        if (tests.timeout_length === null)
+        {
+            tests.timeout();
+        }
+    }
+    expose(timeout, 'timeout');
+
+    function add_setup_callback(callback) {
+        tests.setup_callbacks.push(callback);
+    }
+
+    function add_start_callback(callback) {
+        tests.start_callbacks.push(callback);
+    }
+
+    function add_result_callback(callback)
+    {
+        tests.test_done_callbacks.push(callback);
+    }
+
+    function add_completion_callback(callback)
+    {
+       tests.all_done_callbacks.push(callback);
+    }
+
+    expose(add_setup_callback, 'add_setup_callback');
+    expose(add_start_callback, 'add_start_callback');
+    expose(add_result_callback, 'add_result_callback');
+    expose(add_completion_callback, 'add_completion_callback');
+
+    /*
+     * Utility funcions
+     */
+    function assert(expected_true, function_name, description, error, substitutions)
+    {
+        if (expected_true !== true)
+        {
+            throw new AssertionError(make_message(function_name, description,
+                                                  error, substitutions));
+        }
+    }
+
+    function AssertionError(message)
+    {
+        this.message = message;
+    }
+
+    function make_message(function_name, description, error, substitutions)
+    {
+        for (var p in substitutions) {
+            if (substitutions.hasOwnProperty(p)) {
+                substitutions[p] = format_value(substitutions[p]);
+            }
+        }
+        var node_form = substitute(["{text}", "${function_name}: ${description}" + error],
+                                   merge({function_name:function_name,
+                                          description:(description?description + " ":"")},
+                                          substitutions));
+        return node_form.slice(1).join("");
+    }
+
+    function map(array, callable, thisObj)
+    {
+        var rv = [];
+        rv.length = array.length;
+        for (var i=0; i<array.length; i++)
+        {
+            if (array.hasOwnProperty(i))
+            {
+                rv[i] = callable.call(thisObj, array[i], i, array);
+            }
+        }
+        return rv;
+    }
+
+    function forEach (array, callback, thisObj)
+    {
+        for (var i=0; i<array.length; i++)
+        {
+            if (array.hasOwnProperty(i))
+            {
+                callback.call(thisObj, array[i], i, array);
+            }
+        }
+    }
+
+    function merge(a,b)
+    {
+        var rv = {};
+        var p;
+        for (p in a)
+        {
+            rv[p] = a[p];
+        }
+        for (p in b) {
+            rv[p] = b[p];
+        }
+        return rv;
+    }
+
+    function expose(object, name)
+    {
+        var components = name.split(".");
+        var target = window;
+        for (var i=0; i<components.length - 1; i++)
+        {
+            if (!(components[i] in target))
+            {
+                target[components[i]] = {};
+            }
+            target = target[components[i]];
+        }
+        target[components[components.length - 1]] = object;
+    }
+
+})();
+
+(function () {
+
+    var debug = false;
+
+    function is_same_origin(w) {
+        try {
+            'random_prop' in w;
+            return true;
+        } catch(e) {
+            return false;
+        }
+    }
+
+    function supports_post_message(w)
+    {
+        var supports;
+        var type;
+        // Given IE  implements postMessage across nested iframes but not across
+        // windows or tabs, you can't infer cross-origin communication from the presence
+        // of postMessage on the current window object only.
+        //
+        // Touching the postMessage prop on a window can throw if the window is
+        // not from the same origin AND post message is not supported in that
+        // browser. So just doing an existence test here won't do, you also need
+        // to wrap it in a try..cacth block.
+        try
+        {
+            type = typeof w.postMessage;
+            if (type === "function")
+            {
+                supports = true;
+            }
+            // IE8 supports postMessage, but implements it as a host object which
+            // returns "object" as its `typeof`.
+            else if (type === "object")
+            {
+                supports = true;
+            }
+            // This is the case where postMessage isn't supported AND accessing a
+            // window property across origins does NOT throw (e.g. old Safari browser).
+            else
+            {
+                supports = false;
+            }
+        }
+        catch(e) {
+            // This is the case where postMessage isn't supported AND accessing a
+            // window property across origins throws (e.g. old Firefox browser).
+            supports = false;
+        }
+        return supports;
+    }
+
+    function forEach_windows(callback) {
+        // Iterate of the the windows [self ... top, opener]. The callback is passed
+        // two objects, the first one is the windows object itself, the second one
+        // is a boolean indicating whether or not its on the same origin as the
+        // current window.
+        var cache = forEach_windows.result_cache;
+        if (!cache) {
+            cache = [[self, true]];
+            var w = self;
+            var i = 0;
+            var so;
+            var origins = location.ancestorOrigins;
+            while (w != w.parent)
+            {
+                w = w.parent;
+                // In WebKit, calls to parent windows' properties that aren't on the same
+                // origin cause an error message to be displayed in the error console but
+                // don't throw an exception. This is a deviation from the current HTML5
+                // spec. See: https://bugs.webkit.org/show_bug.cgi?id=43504
+                // The problem with WebKit's behavior is that it pollutes the error console
+                // with error messages that can't be caught.
+                //
+                // This issue can be mitigated by relying on the (for now) proprietary
+                // `location.ancestorOrigins` property which returns an ordered list of
+                // the origins of enclosing windows. See:
+                // http://trac.webkit.org/changeset/113945.
+                if(origins) {
+                    so = (location.origin == origins[i]);
+                }
+                else
+                {
+                    so = is_same_origin(w);
+                }
+                cache.push([w, so]);
+                i++;
+            }
+            w = window.opener;
+            if(w)
+            {
+                // window.opener isn't included in the `location.ancestorOrigins` prop.
+                // We'll just have to deal with a simple check and an error msg on WebKit
+                // browsers in this case.
+                cache.push([w, is_same_origin(w)]);
+            }
+            forEach_windows.result_cache = cache;
+        }
+
+        var j = -1;
+        while (++j < cache.length) {
+          callback.apply(null, cache[j]);
+        }
+    }
+
+    add_start_callback(function (properties) {
+        forEach_windows(
+                function(w, is_same_origin)
+                {
+                    if(is_same_origin && w.start_callback)
+                    {
+                        try
+                        {
+                            w.start_callback(properties);
+                        }
+                        catch(e)
+                        {
+                            if (debug)
+                            {
+                                throw(e);
+                            }
+                        }
+                    }
+                    if (supports_post_message(w) && w !== self)
+                    {
+                        w.postMessage({
+                            type: "start",
+                            properties: properties
+                        }, "*");
+                    }
+                });
+    });
+
+    add_result_callback(function (test) {
         forEach_windows(
                 function(w, is_same_origin)
                 {
@@ -1472,52 +1732,10 @@ policies and contribution forms [3].
                             test: test.structured_clone()
                         }, "*");
                     }
-                });
-        this.processing_callbacks = false;
-        if (this_obj.all_done())
-        {
-            this_obj.complete();
-        }
-    };
-
-    Tests.prototype.complete = function() {
-        if (this.phase === this.phases.COMPLETE) {
-            return;
-        }
-        this.phase = this.phases.COMPLETE;
-        var this_obj = this;
-        this.tests.forEach(
-            function(x)
-            {
-                if(x.status === x.NOTRUN)
-                {
-                    this_obj.notify_result(x);
-                }
-            }
-        );
-        this.notify_complete();
-    };
-
-    Tests.prototype.notify_complete = function()
-    {
-        clearTimeout(this.timeout_id);
-        var this_obj = this;
-        var tests = map(this_obj.tests,
-                        function(test)
-                        {
-                            return test.structured_clone();
-                        });
-        if (this.status.status === null)
-        {
-            this.status.status = this.status.OK;
-        }
-
-        forEach (this.all_done_callbacks,
-                 function(callback)
-                 {
-                     callback(this_obj.tests, this_obj.status);
-                 });
-
+                });    
+    });
+    
+    add_completion_callback(function (tests, status) {
         forEach_windows(
                 function(w, is_same_origin)
                 {
@@ -1525,7 +1743,7 @@ policies and contribution forms [3].
                     {
                         try
                         {
-                            w.completion_callback(this_obj.tests, this_obj.status);
+                            w.completion_callback(tests, status);
                         }
                         catch(e)
                         {
@@ -1540,52 +1758,51 @@ policies and contribution forms [3].
                         w.postMessage({
                             type: "complete",
                             tests: tests,
-                            status: this_obj.status.structured_clone()
+                            status: status.structured_clone()
                         }, "*");
                     }
                 });
-    };
+    });
 
-    var tests = new Tests();
+}());
+// vim: set expandtab shiftwidth=4 tabstop=4:
 
-    window.onerror = function(msg) {
-        if (!tests.allow_uncaught_exception)
-        {
-            tests.status.status = tests.status.ERROR;
-            tests.status.message = msg;
-            tests.complete();
-        }
-    }
+(function () {
 
-    function timeout() {
-        if (tests.timeout_length === null)
-        {
-            tests.timeout();
-        }
-    }
-    expose(timeout, 'timeout');
+    var xhtml_ns = "http://www.w3.org/1999/xhtml";
 
-    function add_start_callback(callback) {
-        tests.start_callbacks.push(callback);
-    }
-
-    function add_result_callback(callback)
+    // script_prefix is used by Output.prototype.show_results() to figure out
+    // where to get testharness.css from.  It's enclosed in an extra closure to
+    // not pollute the library's namespace with variables like "src".
+    var script_prefix = null;
+    (function ()
     {
-        tests.test_done_callbacks.push(callback);
-    }
-
-    function add_completion_callback(callback)
-    {
-       tests.all_done_callbacks.push(callback);
-    }
-
-    expose(add_start_callback, 'add_start_callback');
-    expose(add_result_callback, 'add_result_callback');
-    expose(add_completion_callback, 'add_completion_callback');
+        var scripts = document.getElementsByTagName("script");
+        for (var i = 0; i < scripts.length; i++)
+        {
+            if (scripts[i].src)
+            {
+                var src = scripts[i].src;
+            }
+            else if (scripts[i].href)
+            {
+                //SVG case
+                var src = scripts[i].href.baseVal;
+            }
+            if (src && src.slice(src.length - "testharness.js".length) === "testharness.js")
+            {
+                script_prefix = src.slice(0, src.length - "testharness.js".length);
+                break;
+            }
+        }
+    })();
 
     /*
      * Output listener
     */
+    var settings = {
+      output: true
+    };
 
     function Output() {
       this.output_document = document;
@@ -1593,6 +1810,10 @@ policies and contribution forms [3].
       this.done_count = 0;
       this.enabled = settings.output;
       this.phase = this.INITIAL;
+      var that = this;
+      add_setup_callback(function (properties) {
+        that.setup(properties);
+      });
     }
 
     Output.prototype.INITIAL = 0;
@@ -1646,7 +1867,7 @@ policies and contribution forms [3].
         }
     };
 
-    Output.prototype.show_status = function(test)
+    Output.prototype.show_status = function(tests)
     {
         if (this.phase < this.STARTED)
         {
@@ -1716,21 +1937,25 @@ policies and contribution forms [3].
         status_text_harness[harness_status.TIMEOUT] = "Timeout";
 
         var status_text = {};
-        status_text[Test.prototype.PASS] = "Pass";
-        status_text[Test.prototype.FAIL] = "Fail";
-        status_text[Test.prototype.TIMEOUT] = "Timeout";
-        status_text[Test.prototype.NOTRUN] = "Not Run";
+        if (tests.length > 0) {
+          status_text[tests[0].PASS] = "Pass";
+          status_text[tests[0].FAIL] = "Fail";
+          status_text[tests[0].TIMEOUT] = "Timeout";
+          status_text[tests[0].NOTRUN] = "Not Run";
+        }
 
         var status_number = {};
-        forEach(tests, function(test) {
-                    var status = status_text[test.status];
-                    if (status_number.hasOwnProperty(status))
-                    {
-                        status_number[status] += 1;
-                    } else {
-                        status_number[status] = 1;
-                    }
-                });
+        var i = -1;
+        while (++i < tests.length) {
+          var test = tests[i];
+          var status = status_text[test.status];
+          if (status_number.hasOwnProperty(status))
+          {
+              status_number[status] += 1;
+          } else {
+              status_number[status] = 1;
+          }
+        }
 
         function status_class(status)
         {
@@ -1786,8 +2011,7 @@ policies and contribution forms [3].
 
         log.appendChild(render(summary_template, {num_tests:tests.length}, output_document));
 
-        forEach(output_document.querySelectorAll("section#summary label"),
-                function(element)
+        var initializeSummaryLabel = function(element)
                 {
                     on_event(element, "click",
                              function(e)
@@ -1809,7 +2033,12 @@ policies and contribution forms [3].
                                      style_element.parentNode.removeChild(style_element);
                                  }
                              });
-                });
+                };
+        var summaryLabels = output_document.querySelectorAll("section#summary label");
+        i = -1;
+        while (++i < summaryLabels.length) {
+          initializeSummaryLabel(summaryLabels[i]);
+        }
 
         // This use of innerHTML plus manual escaping is not recommended in
         // general, but is necessary here for performance.  Using textContent
@@ -1876,7 +2105,9 @@ policies and contribution forms [3].
 
     var output = new Output();
     add_start_callback(function (properties) {output.init(properties);});
-    add_result_callback(function (test) {output.show_status(tests);});
+    add_result_callback(function (test, tests) {
+      output.show_status(tests);
+    });
     add_completion_callback(function (tests, harness_status) {output.show_results(tests, harness_status);});
 
     /*
@@ -1937,9 +2168,15 @@ policies and contribution forms [3].
         }
         else
         {
-            return filter(map(template, function(x) {
-                                  return substitute(x, substitutions);
-                              }), function(x) {return x !== null;});
+            var result = [];
+            var i = -1;
+            while (++i < template.length) {
+              var x = substitute(template[i], substitutions);
+              if (x !== null) {
+                result.push(x);
+              }
+            }
+            return result;
         }
     }
 
@@ -1985,6 +2222,11 @@ policies and contribution forms [3].
             }
         }
 
+        function extend(array, items)
+        {
+            Array.prototype.push.apply(array, items);
+        }
+        
         function substitute_children(children, rv)
         {
             for (var i=0; i<children.length; i++)
@@ -2062,9 +2304,12 @@ policies and contribution forms [3].
         }
         else
         {
-            return map(template, function(x) {
-                           return make_dom_single(x, output_document);
-                       });
+            var i = -1;
+            var result = [];
+            while (++i < template.length) {
+              result.push(make_dom_single(template[i], output_document));
+            }
+            return result;
         }
     }
 
@@ -2072,213 +2317,4 @@ policies and contribution forms [3].
     {
         return make_dom(substitute(template, substitutions), output_document);
     }
-
-    /*
-     * Utility funcions
-     */
-    function assert(expected_true, function_name, description, error, substitutions)
-    {
-        if (expected_true !== true)
-        {
-            throw new AssertionError(make_message(function_name, description,
-                                                  error, substitutions));
-        }
-    }
-
-    function AssertionError(message)
-    {
-        this.message = message;
-    }
-
-    function make_message(function_name, description, error, substitutions)
-    {
-        for (var p in substitutions) {
-            if (substitutions.hasOwnProperty(p)) {
-                substitutions[p] = format_value(substitutions[p]);
-            }
-        }
-        var node_form = substitute(["{text}", "${function_name}: ${description}" + error],
-                                   merge({function_name:function_name,
-                                          description:(description?description + " ":"")},
-                                          substitutions));
-        return node_form.slice(1).join("");
-    }
-
-    function filter(array, callable, thisObj) {
-        var rv = [];
-        for (var i=0; i<array.length; i++)
-        {
-            if (array.hasOwnProperty(i))
-            {
-                var pass = callable.call(thisObj, array[i], i, array);
-                if (pass) {
-                    rv.push(array[i]);
-                }
-            }
-        }
-        return rv;
-    }
-
-    function map(array, callable, thisObj)
-    {
-        var rv = [];
-        rv.length = array.length;
-        for (var i=0; i<array.length; i++)
-        {
-            if (array.hasOwnProperty(i))
-            {
-                rv[i] = callable.call(thisObj, array[i], i, array);
-            }
-        }
-        return rv;
-    }
-
-    function extend(array, items)
-    {
-        Array.prototype.push.apply(array, items);
-    }
-
-    function forEach (array, callback, thisObj)
-    {
-        for (var i=0; i<array.length; i++)
-        {
-            if (array.hasOwnProperty(i))
-            {
-                callback.call(thisObj, array[i], i, array);
-            }
-        }
-    }
-
-    function merge(a,b)
-    {
-        var rv = {};
-        var p;
-        for (p in a)
-        {
-            rv[p] = a[p];
-        }
-        for (p in b) {
-            rv[p] = b[p];
-        }
-        return rv;
-    }
-
-    function expose(object, name)
-    {
-        var components = name.split(".");
-        var target = window;
-        for (var i=0; i<components.length - 1; i++)
-        {
-            if (!(components[i] in target))
-            {
-                target[components[i]] = {};
-            }
-            target = target[components[i]];
-        }
-        target[components[components.length - 1]] = object;
-    }
-
-    function forEach_windows(callback) {
-        // Iterate of the the windows [self ... top, opener]. The callback is passed
-        // two objects, the first one is the windows object itself, the second one
-        // is a boolean indicating whether or not its on the same origin as the
-        // current window.
-        var cache = forEach_windows.result_cache;
-        if (!cache) {
-            cache = [[self, true]];
-            var w = self;
-            var i = 0;
-            var so;
-            var origins = location.ancestorOrigins;
-            while (w != w.parent)
-            {
-                w = w.parent;
-                // In WebKit, calls to parent windows' properties that aren't on the same
-                // origin cause an error message to be displayed in the error console but
-                // don't throw an exception. This is a deviation from the current HTML5
-                // spec. See: https://bugs.webkit.org/show_bug.cgi?id=43504
-                // The problem with WebKit's behavior is that it pollutes the error console
-                // with error messages that can't be caught.
-                //
-                // This issue can be mitigated by relying on the (for now) proprietary
-                // `location.ancestorOrigins` property which returns an ordered list of
-                // the origins of enclosing windows. See:
-                // http://trac.webkit.org/changeset/113945.
-                if(origins) {
-                    so = (location.origin == origins[i]);
-                }
-                else
-                {
-                    so = is_same_origin(w);
-                }
-                cache.push([w, so]);
-                i++;
-            }
-            w = window.opener;
-            if(w)
-            {
-                // window.opener isn't included in the `location.ancestorOrigins` prop.
-                // We'll just have to deal with a simple check and an error msg on WebKit
-                // browsers in this case.
-                cache.push([w, is_same_origin(w)]);
-            }
-            forEach_windows.result_cache = cache;
-        }
-
-        forEach(cache,
-                function(a)
-                {
-                    callback.apply(null, a);
-                });
-    }
-
-    function is_same_origin(w) {
-        try {
-            'random_prop' in w;
-            return true;
-        } catch(e) {
-            return false;
-        }
-    }
-
-    function supports_post_message(w)
-    {
-        var supports;
-        var type;
-        // Given IE  implements postMessage across nested iframes but not across
-        // windows or tabs, you can't infer cross-origin communication from the presence
-        // of postMessage on the current window object only.
-        //
-        // Touching the postMessage prop on a window can throw if the window is
-        // not from the same origin AND post message is not supported in that
-        // browser. So just doing an existence test here won't do, you also need
-        // to wrap it in a try..cacth block.
-        try
-        {
-            type = typeof w.postMessage;
-            if (type === "function")
-            {
-                supports = true;
-            }
-            // IE8 supports postMessage, but implements it as a host object which
-            // returns "object" as its `typeof`.
-            else if (type === "object")
-            {
-                supports = true;
-            }
-            // This is the case where postMessage isn't supported AND accessing a
-            // window property across origins does NOT throw (e.g. old Safari browser).
-            else
-            {
-                supports = false;
-            }
-        }
-        catch(e) {
-            // This is the case where postMessage isn't supported AND accessing a
-            // window property across origins throws (e.g. old Firefox browser).
-            supports = false;
-        }
-        return supports;
-    }
-})();
-// vim: set expandtab shiftwidth=4 tabstop=4:
+}());
