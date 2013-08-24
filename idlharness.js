@@ -1179,7 +1179,116 @@ IdlInterface.prototype.test_self = function()
         }.bind(this), this.name + " interface constructor");
     }
 
-    // TODO: Test named constructors if I find any interfaces that have them.
+    if (this.has_extended_attribute("NamedConstructor"))
+    {
+        test(function()
+        {
+            var constructor_name = ""
+            ,   firstAttr = false
+            ,   namedconsAttrs = this.extAttrs
+                    .filter(function(attr) { return attr.name == "NamedConstructor"; })
+            ;
+
+            namedconsAttrs.forEach(function(attr)
+            {
+                if (!firstAttr)
+                {
+                    constructor_name = attr.rhs.value;
+                    firstAttr = true;
+                }
+                else
+                {
+                    assert_equals(attr.rhs.value, constructor_name, "identifier of constructor ");
+                }                  
+            }.bind(this));
+
+            assert_own_property(window, constructor_name,
+                                "window does not have own property " + format_value(constructor_name));
+
+            // "The identifier used for the named constructor MUST NOT be the same
+            // as that used by an [NamedConstructor] extended attribute on another
+            // interface, MUST NOT be the same as an identifier of an interface
+            // (or exception) that has an interface object (or exception interface 
+            // object), and MUST NOT be one of the reserved identifiers."
+            assert_equals(this.array.members[constructor_name], undefined,
+                          "NamedConstructor identifier must not be the same as interface's or exception's ");
+
+            // "It MUST have a [[Call]] internal property."
+            // "If the internal [[Call]] method of the interface object returns
+            // normally, then it MUST return an object that implements interface I."
+            assert_equals(typeof(window[constructor_name]), "function",
+                          format_value(constructor_name) + "is not a function");
+            namedconsAttrs.forEach(function(cur_attr)
+            {
+                var cons_args = new Array()
+                ,   cons_string = ""
+                ;
+                cur_attr.arguments.forEach(function(cur_arg)
+                {
+                    var cur_type = create_suitable_object(cur_arg.idlType);
+                    cons_args.push(cur_type);
+                });
+                for (var i=0; i < cons_args.length; i++)
+                {
+                    if (i != cons_args.length - 1)
+                    {
+                        cons_string = cons_string + "cons_args[" + i + "], ";
+                    }
+                    else
+                    {
+                        cons_string = cons_string + "cons_args[" + i + "]";
+                    }
+                }                 
+                var temp_intobj = new window[constructor_name](eval(cons_string));
+                assert_equals(typeof(temp_intobj),"object",
+                              "new " + constructor_name + "(" + eval(cons_string) + ") is not an object");
+                assert_true(temp_intobj instanceof window[this.name],
+                            "new " + constructor_name + "(" + eval(cons_string) + ") do not get the implement of " + format_value(this.name));
+            }.bind(this));
+
+            // This object also MUST be associated with the ECMAScript global 
+            // environment associated with the named constructor."
+            // TODO
+
+            // "A named constructor MUST have a property named “length” with 
+            // attributes { [[Writable]]: false, [[Enumerable]]: false, 
+            // [[Configurable]]: false } whose value is a Number determined 
+            // as follows: . . .
+            // Return the length of the shortest argument list of the entries in S." 
+            var expected_length = namedconsAttrs
+                .map(function(attr) {
+                    return attr.arguments ? attr.arguments.filter(
+                        function(arg) {
+                            return !arg.optional;
+                        }).length : 0;
+                })
+                .reduce(function(m, n) { return Math.min(m, n); });  
+            assert_own_property(window[constructor_name], "length");
+            assert_equals(window[constructor_name].length, expected_length,
+                          "wrong value for " + constructor_name + ".length");
+            var desc = Object.getOwnPropertyDescriptor(window[constructor_name], "length");
+            assert_false("get" in desc, constructor_name + ".length has getter");
+            assert_false("set" in desc, constructor_name + ".length has setter");
+            assert_false(desc.writable, constructor_name + ".length is writable");
+            assert_false(desc.enumerable, constructor_name + ".length is enumerable");
+            assert_false(desc.configurable, constructor_name + ".length is configurable");
+
+            // "A named constructor MUST also have a property named “prototype”
+            // with attributes { [[Writable]]: false, [[Enumerable]]: false,
+            // [[Configurable]]: false } whose value is the interface prototype
+            // object for the interface on which the [NamedConstructor] extended
+            // attribute appears."
+            assert_own_property(window[constructor_name],"prototype");
+            var desc = Object.getOwnPropertyDescriptor(window[constructor_name], "prototype");
+            assert_false("get" in desc, constructor_name + ".length has getter");
+            assert_false("set" in desc, constructor_name + ".length has setter");
+            assert_false(desc.writable, constructor_name + ".length is writable");
+            assert_false(desc.enumerable, constructor_name + ".length is enumerable");
+            assert_false(desc.configurable, constructor_name + ".length is configurable");
+            assert_equals(desc.value, window[constructor_name].prototype,
+                        desc.value + " is not " + format_value(constructor_name) + ".prototype");
+        }.bind(this), this.name + " interface: named constructor");
+    }
 
     test(function()
     {
@@ -1826,11 +1935,11 @@ IdlEnum.prototype = Object.create(IdlObject.prototype);
 IdlEnum.prototype.test = function()
 //@{
 {
-            test(function()
-            {
-		// NOTHING to test
-		return;
-	    });
+    test(function()
+    {
+        // NOTHING to test
+        return;
+    });
 }
 //@}
 }());
