@@ -1205,12 +1205,17 @@ IdlInterface.prototype.test_self = function()
             assert_own_property(window, constructor_name,
                                 "window does not have own property " + format_value(constructor_name));
 
+            // "The identifier used for the named constructor MUST NOT be the same
+            // as that used by an [NamedConstructor] extended attribute on another
+            // interface, MUST NOT be the same as an identifier of an interface
+            // (or exception) that has an interface object (or exception interface 
+            // object), and MUST NOT be one of the reserved identifiers."
+            assert_equals(this.array.members[constructor_name], undefined,
+                          "NamedConstructor identifier must not be the same as interface's or exception's ");
+
             // "It MUST have a [[Call]] internal property."
             // "If the internal [[Call]] method of the interface object returns
             // normally, then it MUST return an object that implements interface I."
-            //
-            // TODO: "This object also MUST be associated with the ECMAScript global 
-            // environment associated with the interface object."
             assert_equals(typeof(window[constructor_name]), "function",
                           format_value(constructor_name) + "is not a function");
             namedconsAttrs.forEach(function(cur_attr)
@@ -1241,16 +1246,15 @@ IdlInterface.prototype.test_self = function()
                             "new " + constructor_name + "(" + eval(cons_string) + ") do not get the implement of " + format_value(this.name));
             }.bind(this));
 
-            // "Interface objects for interfaces declared with a [Constructor]
-            // extended attribute MUST have a property named “length” with
-            // attributes { [[Writable]]: false, [[Enumerable]]: false,
-            // [[Configurable]]: false } whose value is a Number determined as
-            // follows..."
-            // ...
-            // "Return the maximum argument list length of the constructors
-            // in the entries of S."
-            // TODO: The length of constructor is 0(in Firefox and Chromium),
-            // caused the failure of this case. Should we use MAX or MIN? 
+            // This object also MUST be associated with the ECMAScript global 
+            // environment associated with the named constructor."
+            // TODO
+
+            // "A named constructor MUST have a property named “length” with 
+            // attributes { [[Writable]]: false, [[Enumerable]]: false, 
+            // [[Configurable]]: false } whose value is a Number determined 
+            // as follows: . . .
+            // Return the length of the shortest argument list of the entries in S." 
             var expected_length = namedconsAttrs
                 .map(function(attr) {
                     return attr.arguments ? attr.arguments.filter(
@@ -1258,7 +1262,7 @@ IdlInterface.prototype.test_self = function()
                             return !arg.optional;
                         }).length : 0;
                 })
-                .reduce(function(m, n) { return Math.max(m, n); });  
+                .reduce(function(m, n) { return Math.min(m, n); });  
             assert_own_property(window[constructor_name], "length");
             assert_equals(window[constructor_name].length, expected_length,
                           "wrong value for " + constructor_name + ".length");
