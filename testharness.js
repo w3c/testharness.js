@@ -33,6 +33,9 @@ policies and contribution forms [3].
     var script_prefix = null;
     (function ()
     {
+        if (!self.document) {
+            return;
+        }
         var scripts = document.getElementsByTagName("script");
         for (var i = 0; i < scripts.length; i++) {
             var src;
@@ -58,7 +61,7 @@ policies and contribution forms [3].
     function next_default_name()
     {
         //Don't use document.title to work around an Opera bug in XHTML documents
-        var title = document.getElementsByTagName("title")[0];
+        var title = self.document && document.getElementsByTagName("title")[0];
         var prefix = (title && title.firstChild && title.firstChild.data) || "Untitled";
         var suffix = name_counter > 0 ? " " + name_counter : "";
         name_counter++;
@@ -982,17 +985,20 @@ policies and contribution forms [3].
 
         this.status = new TestsStatus();
 
-        var this_obj = this;
-
-        on_event(window, "load",
-                 function()
-                 {
-                     this_obj.all_loaded = true;
-                     if (this_obj.all_done())
-                     {
-                         this_obj.complete();
-                     }
-                 });
+        if (self.window) {
+            var this_obj = this;
+            on_event(window, "load",
+                     function() {
+                         this_obj.all_loaded = true;
+                         if (this_obj.all_done()) {
+                             this_obj.complete();
+                         }
+                     });
+        } else {
+            // Workers don't have a load event.
+            this.all_loaded = true;
+            this.wait_for_finish = true;
+        }
 
         this.set_timeout();
     }
@@ -1050,7 +1056,10 @@ policies and contribution forms [3].
     };
 
     Tests.prototype.get_timeout = function() {
-        var metas = document.getElementsByTagName("meta");
+        if (!self.document) {
+            return;
+        }
+        var metas = self.document.getElementsByTagName("meta");
         for (var i = 0; i < metas.length; i++) {
             if (metas[i].name == "timeout") {
                 if (metas[i].content == "long") {
@@ -1286,7 +1295,7 @@ policies and contribution forms [3].
     */
 
     function Output() {
-        this.output_document = document;
+        this.output_document = self.document;
         this.output_node = null;
         this.done_count = 0;
         this.enabled = settings.output;
@@ -1316,7 +1325,7 @@ policies and contribution forms [3].
         if (properties.output_document) {
             this.output_document = properties.output_document;
         } else {
-            this.output_document = document;
+            this.output_document = self.document;
         }
         this.phase = this.STARTED;
     };
@@ -1553,10 +1562,30 @@ policies and contribution forms [3].
         }
     };
 
-    var output = new Output();
-    add_start_callback(function (properties) {output.init(properties);});
-    add_result_callback(function () {output.show_status();});
-    add_completion_callback(function (tests, harness_status) {output.show_results(tests, harness_status);});
+    if (self.location.href.endsWith("-worker.html")) {
+        var output = new Output();
+        var receive_message = function (message) {
+            switch (message.type) {
+            case "start":
+                output.init(message.value);
+                break;
+            case "result":
+                output.show_status();
+                break;
+            case "end":
+                output.show_results(message.value.tests, message.value.status);
+                break;
+            default:
+                break;
+            }
+        }
+        expose(receive_message, 'receive_message');
+    } else {
+        var output = new Output();
+        add_start_callback(function (properties) {output.init(properties);});
+        add_result_callback(function () {output.show_status();});
+        add_completion_callback(function (tests, harness_status) {output.show_results(tests, harness_status);});
+    }
 
     /*
      * Template code
@@ -1817,7 +1846,7 @@ policies and contribution forms [3].
     function expose(object, name)
     {
         var components = name.split(".");
-        var target = window;
+        var target = self;
         for (var i = 0; i < components.length - 1; i++) {
             if (!(components[i] in target)) {
                 target[components[i]] = {};
@@ -1839,7 +1868,7 @@ policies and contribution forms [3].
             var i = 0;
             var so;
             var origins = location.ancestorOrigins;
-            while (w != w.parent) {
+            while (w.parent && w != w.parent) {
                 w = w.parent;
                 // In WebKit, calls to parent windows' properties that aren't on the same
                 // origin cause an error message to be displayed in the error console but
@@ -1860,7 +1889,7 @@ policies and contribution forms [3].
                 cache.push([w, so]);
                 i++;
             }
-            w = window.opener;
+            w = self.opener;
             if (w) {
                 // window.opener isn't included in the `location.ancestorOrigins` prop.
                 // We'll just have to deal with a simple check and an error msg on WebKit
@@ -1921,6 +1950,45 @@ policies and contribution forms [3].
             supports = false;
         }
         return supports;
+    }
+
+    if (self.WorkerGlobalScope && self instanceof self.WorkerGlobalScope) {
+        var sanitize_for_postmessage = function(test) {
+            var sanitized = {}
+            for (var p in test) {
+                var prop = test[p]
+                if (typeof prop === "function") {
+                    continue;
+                }
+                if (p === "steps") {
+                    continue;
+                }
+                sanitized[p] = prop;
+            }
+            return sanitized;
+        };
+        add_start_callback(function(properties) {
+            postMessage({
+                type: "start",
+                value: properties
+            });
+        });
+        add_result_callback(function(test) {
+            postMessage({
+                type: "result",
+                value: sanitize_for_postmessage(test)
+            });
+        });
+        add_completion_callback(function(tests, status) {
+            status.OK = status.OK;
+            postMessage({
+                type: "end",
+                value: {
+                    tests: tests.map(sanitize_for_postmessage),
+                    status: status
+                }
+            });
+        });
     }
 })();
 // vim: set expandtab shiftwidth=4 tabstop=4:
