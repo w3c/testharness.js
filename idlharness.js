@@ -1484,7 +1484,7 @@ IdlInterface.prototype.test_members = function()
                 // no [ImplicitThis] attribute, and the this value is null.
                 //
                 // TODO: We currently ignore the [ImplicitThis] case.
-                if (member["static"]) {
+                if (!member["static"]) {
                     assert_throws(new TypeError(), function() {
                         window[this.name].prototype[member.name].apply(null, args);
                     }, "calling operation with this = null didn't throw TypeError");
