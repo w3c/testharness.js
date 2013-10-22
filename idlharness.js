@@ -1385,7 +1385,7 @@ IdlInterface.prototype.test_members = function()
                                     'interface "' + this.name + '" does not have own property "prototype"');
 
                 if (member["static"]) {
-                    assert_true(member.name in window[this.name],
+                    assert_own_property(window[this.name], member.name,
                         "The interface object must have a property " +
                         format_value(member.name));
                 }
@@ -1434,20 +1434,20 @@ IdlInterface.prototype.test_members = function()
                 // and with an argument count of 0 (for the ECMAScript language
                 // binding) has no entries."
                 //
-                var operation;
+                var prototypeOrInterfaceObject;
                 if (member["static"]) {
                     assert_own_property(window[this.name], member.name,
                             "interface prototype object missing static operation");
-                    operation = window[this.name];
+                    prototypeOrInterfaceObject = window[this.name];
                 }
                 else
                 {
                     assert_own_property(window[this.name].prototype, member.name,
                             "interface prototype object missing non-static operation");
-                    operation = window[this.name].prototype;
+                    prototypeOrInterfaceObject = window[this.name].prototype;
                 }
 
-                var desc = Object.getOwnPropertyDescriptor(operation, member.name);
+                var desc = Object.getOwnPropertyDescriptor(prototypeOrInterfaceObject, member.name);
                 // "The property has attributes { [[Writable]]: true,
                 // [[Enumerable]]: true, [[Configurable]]: true }."
                 assert_false("get" in desc, "property has getter");
@@ -1457,7 +1457,7 @@ IdlInterface.prototype.test_members = function()
                 assert_true(desc.configurable, "property is not configurable");
                 // "The value of the property is a Function object whose
                 // behavior is as follows . . ."
-                assert_equals(typeof operation[member.name], "function",
+                assert_equals(typeof prototypeOrInterfaceObject[member.name], "function",
                               "property must be a function");
                 // "The value of the Function object’s “length” property is
                 // a Number determined as follows:
@@ -1466,7 +1466,7 @@ IdlInterface.prototype.test_members = function()
                 // entries in S."
                 //
                 // TODO: Doesn't handle overloading or variadic arguments.
-                assert_equals(operation[member.name].length,
+                assert_equals(prototypeOrInterfaceObject[member.name].length,
                     member.arguments.filter(function(arg) {
                         return !arg.optional;
                     }).length,
@@ -1665,6 +1665,10 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                 assert_equals(typeof obj, expected_typeof, "wrong typeof object");
                 if (!member["static"]) {
                     assert_inherits(obj, member.name);
+                }
+                else
+                {
+                    assert_false(member.name in obj);
                 }
                 var args = [];
                 for (var i = 0; i < member.arguments.length; i++)
