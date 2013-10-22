@@ -1622,35 +1622,33 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                 assert_equals(typeof obj, expected_typeof, "wrong typeof object");
                 if (!member["static"]) {
                     assert_inherits(obj, member.name);
-                } else {
-                    return false;
-                }
-                if (member.type == "const")
-                {
-                    assert_equals(obj[member.name], constValue(member.value));
-                }
-                if (member.type == "attribute")
-                {
-                    // Attributes are accessor properties, so they might
-                    // legitimately throw an exception rather than returning
-                    // anything.
-                    var property, thrown = false;
-                    try
+                    if (member.type == "const")
                     {
-                        property = obj[member.name];
+                        assert_equals(obj[member.name], constValue(member.value));
                     }
-                    catch (e)
+                    if (member.type == "attribute")
                     {
-                        thrown = true;
+                        // Attributes are accessor properties, so they might
+                        // legitimately throw an exception rather than returning
+                        // anything.
+                        var property, thrown = false;
+                        try
+                        {
+                            property = obj[member.name];
+                        }
+                        catch (e)
+                        {
+                            thrown = true;
+                        }
+                        if (!thrown)
+                        {
+                            this.array.assert_type_is(property, member.idlType);
+                        }
                     }
-                    if (!thrown)
+                    if (member.type == "operation")
                     {
-                        this.array.assert_type_is(property, member.idlType);
+                        assert_equals(typeof obj[member.name], "function");
                     }
-                }
-                if (member.type == "operation")
-                {
-                    assert_equals(typeof obj[member.name], "function");
                 }
             }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + member.name + '" with the proper type (' + i + ')');
         }
