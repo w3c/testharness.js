@@ -668,20 +668,20 @@ policies and contribution forms [3].
 
     function is_null(any)
     {
-        return Boolean(!any && typeof(any) != "undefined" && any != 0 && any != "");
+        return any === null;
     }
 
     function assert_null(actual, description)
     {
-        assert(is_null(actual) === true, "assert_null", description,
-                                         "expected null got ${actual}", {actual:actual});
+        assert(is_null(actual), "assert_null", description,
+                                "expected null got ${actual}", {actual:actual});
     };
     expose(assert_null, "assert_null");
 
     function assert_not_null(actual, description)
     {
-        assert(is_null(actual) === false, "assert_not_null", description,
-                                          "expected not null got ${actual}", {actual:actual});
+        assert(is_null(actual), "assert_not_null", description,
+                                "expected not null got ${actual}", {actual:actual});
     };
     expose(assert_not_null, "assert_not_null");
 
