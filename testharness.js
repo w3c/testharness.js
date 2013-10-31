@@ -294,6 +294,9 @@ policies and contribution forms [3].
  *   each indexed property in /actual/ is the strictly equal to the corresponding
  *   property value in /expected/
  *
+ * assert_is_array(actual, description)
+ *   asserts that /actual/ is an array
+ *
  * assert_approx_equals(actual, expected, epsilon, description)
  *   asserts that /actual/ is a number within +/- /epsilon/ of /expected/
  *
@@ -801,6 +804,15 @@ policies and contribution forms [3].
         }
     }
     expose(assert_array_equals, "assert_array_equals");
+
+    function assert_is_array(actual, description)
+    {
+        assert(Object.prototype.toString.call(actual) === '[object Array]',
+               "assert_is_array", description,
+               "expected an array but got a ${type_actual}",
+               {type_actual:typeof actual});
+    }
+    expose(assert_is_array, "assert_is_array");
 
     function assert_approx_equals(actual, expected, epsilon, description)
     {
