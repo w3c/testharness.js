@@ -272,6 +272,12 @@ policies and contribution forms [3].
  * assert_false(actual, description)
  *   asserts that /actual/ is strictly false
  *
+ * assert_null(actual, description)
+ *   asserts that /actual/ is null
+ *
+ * assert_not_null(actual, description)
+ *   asserts that /actual/ is not null
+ *
  * assert_equals(actual, expected, description)
  *   asserts that /actual/ is the same value as /expected/
  *
@@ -659,6 +665,25 @@ policies and contribution forms [3].
                                  "expected false got ${actual}", {actual:actual});
     };
     expose(assert_false, "assert_false");
+
+    function is_null(any)
+    {
+        return any === null;
+    }
+
+    function assert_null(actual, description)
+    {
+        assert(is_null(actual), "assert_null", description,
+                                "expected null got ${actual}", {actual:actual});
+    };
+    expose(assert_null, "assert_null");
+
+    function assert_not_null(actual, description)
+    {
+        assert(is_null(actual), "assert_not_null", description,
+                                "expected not null got ${actual}", {actual:actual});
+    };
+    expose(assert_not_null, "assert_not_null");
 
     function same_value(x, y) {
         if (y !== y)
