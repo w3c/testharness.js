@@ -167,6 +167,10 @@
     test(function() {assert_equals(window.global, undefined)},
          "Test that cleanup handlers from previous test ran");
 
+    test(function() {assert_true(false, "Assert that should fail");
+                     assert_true(true, "Assert that not fail");
+                    }, "Test with multiple asserts (should fail)");
+
 </script>
 </body>
 </html>

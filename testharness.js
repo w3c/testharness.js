@@ -392,10 +392,13 @@ policies and contribution forms [3].
             "normal":10000,
             "long":60000
         },
-        test_timeout:null
+        test_timeout:null,
+        continue_after_assert:true
     };
 
     var xhtml_ns = "http://www.w3.org/1999/xhtml";
+
+    var current_test = null;
 
     // script_prefix is used by Output.prototype.show_results() to figure out
     // where to get testharness.css from.  It's enclosed in an extra closure to
@@ -1114,6 +1117,7 @@ policies and contribution forms [3].
 
         var this_obj = this;
         this.steps = [];
+        this.assertions = [];
 
         this.cleanup_callbacks = [];
 
@@ -1148,6 +1152,7 @@ policies and contribution forms [3].
         if (this.phase > this.phases.STARTED) {
             return;
         }
+        current_test = this;
         this.phase = this.phases.STARTED;
         //If we don't get a result before the harness times out that will be a test timout
         this.set_status(this.TIMEOUT, "Test timed out");
@@ -1612,7 +1617,7 @@ policies and contribution forms [3].
             done();
         } else if (!tests.allow_uncaught_exception) {
             tests.status.status = tests.status.ERROR;
-            tests.status.message = msg;
+            tests.status.message = message;
         }
     });
 
@@ -1884,24 +1889,46 @@ policies and contribution forms [3].
             return '';
         }
 
+        function get_individual_assert(test, assert_index) {
+            if (!(assert_index in test.assertions)) {
+                return "<td></td><td></td>";
+            }
+            var assert_result = test.assertions[assert_index];
+            var pass = assert_result[0];
+            var msg = assert_result[1];
+            return "<td>" + (pass ? "PASS" : "FAIL") + "</td><td>" + escape_html(msg) + "</td>";
+        }
+
         log.appendChild(document.createElementNS(xhtml_ns, "section"));
         var assertions = has_assertions();
         var html = "<h2>Details</h2><table id='results' " + (assertions ? "class='assertions'" : "" ) + ">"
             + "<thead><tr><th>Result</th><th>Test Name</th>"
             + (assertions ? "<th>Assertion</th>" : "")
+            + (settings.continue_after_assert ? "<th colspan=2>Individual Asserts</th>" : "")
             + "<th>Message</th></tr></thead>"
             + "<tbody>";
         for (var i = 0; i < tests.length; i++) {
-            html += '<tr class="'
+            var rowspan = settings.continue_after_assert && tests[i].assertions.length ?
+                tests[i].assertions.length : "1";
+            var td = "<td rowspan=" + rowspan + ">";
+            var row_html = '<tr class="'
                 + escape_html(status_class(status_text[tests[i].status]))
-                + '"><td>'
-                + escape_html(status_text[tests[i].status])
-                + "</td><td>"
-                + escape_html(tests[i].name)
-                + "</td><td>"
-                + (assertions ? escape_html(get_assertion(tests[i])) + "</td><td>" : "")
-                + escape_html(tests[i].message ? tests[i].message : " ")
-                + "</td></tr>";
+                + '">'
+                + td + escape_html(status_text[tests[i].status]) + "</td>\n"
+                + td + escape_html(tests[i].name) + "</td>\n"
+                + (assertions ? td + escape_html(get_assertion(tests[i])) + "</td>\n" : "")
+                + (settings.continue_after_assert ? get_individual_assert(tests[i], 0) : "")
+                + td + escape_html(tests[i].message ? tests[i].message : " ") + "</td>\n"
+                + "</tr>\n";
+            if (settings.continue_after_assert) {
+                for (var j=1; j < tests[i].assertions.length; j++) {
+                    row_html += "<tr>" + get_individual_assert(tests[i], j) + "</tr>\n";
+                }
+            }
+            if (settings.continue_after_assert) {
+                //alert(row_html);
+            }
+            html += row_html;
         }
         html += "</tbody></table>";
         try {
@@ -2095,11 +2122,17 @@ policies and contribution forms [3].
         if (expected_true !== true) {
             var msg = make_message(function_name, description,
                                    error, substitutions)
-            if (!tests.file_is_test) {
-                throw new AssertionError(msg);
+            if (settings.continue_after_assert) {
+                current_test.assertions.push([false, msg]);
+                if (current_test.phase < current_test.phases.HAS_RESULT) {
+                    current_test.set_status(current_test.FAIL, msg);
+                    current_test.phase = current_test.phases.HAS_RESULT;
+                }
             } else {
-                throw msg;
+                throw new AssertionError(msg);
             }
+        } else if (settings.continue_after_assert) {
+            current_test.assertions.push([true, function_name + " " + description]);
         }
     }
 
