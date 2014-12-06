@@ -56,6 +56,15 @@ function constValue (cnt) {
     return cnt.value;
 }
 
+function minOverloadLength (overloads) {
+    return overloads.map(function(callable) {
+        return callable.arguments ? callable.arguments.filter(function(arg) {
+            return !arg.optional;
+        }).length : 0;
+    })
+    .reduce(function(m, n) { return Math.min(m, n); });
+}
+
 /// IdlArray ///
 // Entry point
 window.IdlArray = function()
@@ -1058,12 +1067,7 @@ IdlInterface.prototype.test_self = function()
                 // "Otherwise, the value is determined as follows: . . .
                 // "Return the length of the shortest argument list of the
                 // entries in S."
-                expected_length = constructors.map(function(attr) {
-                    return attr.arguments ? attr.arguments.filter(function(arg) {
-                        return !arg.optional;
-                    }).length : 0;
-                })
-                .reduce(function(m, n) { return Math.min(m, n); });
+                expected_length = minOverloadLength(constructors);
             }
             assert_equals(window[this.name].length, expected_length, "wrong value for " + this.name + ".length");
         }.bind(this), this.name + " interface object length");
@@ -1288,6 +1292,15 @@ IdlInterface.prototype.test_member_operation = function(member)
 {
     test(function()
     {
+        var overloads = this.members.filter(function(other) {
+            return other.name == member.name;
+        });
+
+        // Do not repeat tests on the overloads of this member
+        overloads.forEach(function(overload) {
+            overload.untested = false;
+        });
+
         assert_own_property(window, this.name,
                             "window does not have own property " + format_value(this.name));
 
@@ -1338,13 +1351,9 @@ IdlInterface.prototype.test_member_operation = function(member)
         // ". . .
         // "Return the length of the shortest argument list of the
         // entries in S."
-        //
-        // TODO: Doesn't handle overloading or variadic arguments.
-        assert_equals(prototypeOrInterfaceObject[member.name].length,
-            member.arguments.filter(function(arg) {
-                return !arg.optional;
-            }).length,
-            "property has wrong .length");
+        var expected_length = minOverloadLength(overloads);
+        assert_equals(prototypeOrInterfaceObject[member.name].length, expected_length,
+                     "property has wrong .length");
 
         // Make some suitable arguments
         var args = member.arguments.map(function(arg) {
@@ -1372,9 +1381,7 @@ IdlInterface.prototype.test_member_operation = function(member)
         assert_throws(new TypeError(), function() {
             window[this.name].prototype[member.name].apply({}, args);
         }, "calling operation with this = {} didn't throw TypeError");
-    }.bind(this), this.name + " interface: operation " + member.name +
-    "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
-    ")");
+    }.bind(this), this.name + " interface: operation " + member.name + "(...)");
 };
 
 //@}
@@ -1459,9 +1466,9 @@ IdlInterface.prototype.test_members = function()
             break;
 
         case "operation":
-            // TODO: Need to correctly handle multiple operations with the same
-            // identifier.
             if (member.name) {
+                // this call will also unset the untested flag
+                // on each overload of this member
                 this.test_member_operation(member);
             } else if (member.stringifier) {
                 this.test_member_stringifier(member);
