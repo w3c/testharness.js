@@ -88,11 +88,25 @@ tests instances.
 
 The properties argument is identical to that for `test()`.
 
+## Testing with Events ##
+
 In many cases it is convenient to run a step in response to an event or a
 callback. A convenient method of doing this is through the step_func method
 which returns a function that, when called runs a test step. For example
 
     object.some_event = t.step_func(function(e) {assert_true(e.a)});
+
+For the special case of a test that has a single step run in reponse
+to some event, the convenience function `test_on` can be used, for
+example:
+
+    test_on(function(e) {assert_equals(e.type, "DOMContentLoaded")},
+            window, "DOMcontentLoaded");
+
+The most common case of all is running a test after the document has
+fully loaded; this can be achieved using `test_onload`:
+
+    test_onload(function() {assert_equals(window.readyState, "complete")})
 
 For asynchronous callbacks that should never execute, `unreached_func` can
 be used. For example:
