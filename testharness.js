@@ -992,6 +992,17 @@ policies and contribution forms [3].
     }
     expose(assert_readonly, "assert_readonly");
 
+    function assert_does_not_throw(func, description)
+    {
+        try {
+            func.call(this);
+        } catch (e) {
+            assert(false, "assert_does_not_throw", description,
+                   "${func} should run smoothly but it threw \"${error}\"", {func:func, error:e});
+        }
+    }
+    expose(assert_does_not_throw, "assert_does_not_throw");
+
     function assert_throws(code, func, description)
     {
         try {
