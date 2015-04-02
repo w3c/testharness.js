@@ -449,6 +449,7 @@
             test_obj.done();
         }
     }
+    expose(test, 'test');
 
     function async_test(func, name, properties) {
         if (typeof func !== "function") {
@@ -464,6 +465,7 @@
         }
         return test_obj;
     }
+    expose(async_test, 'async_test');
 
     function promise_test(func, name, properties) {
         var test = async_test(name, properties);
@@ -482,6 +484,7 @@
                            {value: value});
                 }));
     }
+    expose(promise_test, 'promise_test');
 
     function promise_rejects(test, expected, promise) {
         return promise.then(test.unreached_func("Should have rejected."))
@@ -491,6 +494,7 @@
                 });
             });
     }
+    expose(promise_rejects, 'promise_rejects');
 
     /**
      * This constructor helper allows DOM events to be handled using Promises,
@@ -573,6 +577,7 @@
         tests.setup(func, properties);
         test_environment.on_new_harness_properties(properties);
     }
+    expose(setup, 'setup');
 
     function done() {
         if (tests.tests.length === 0) {
@@ -583,6 +588,7 @@
         }
         tests.end_wait();
     }
+    expose(done, 'done');
 
     function generate_tests(func, args, properties) {
         forEach(args, function(x, i) {
@@ -595,18 +601,11 @@
                  properties);
         });
     }
+    expose(generate_tests, 'generate_tests');
 
     function on_event(object, event, callback) {
         object.addEventListener(event, callback, false);
     }
-
-    expose(test, 'test');
-    expose(async_test, 'async_test');
-    expose(promise_test, 'promise_test');
-    expose(promise_rejects, 'promise_rejects');
-    expose(generate_tests, 'generate_tests');
-    expose(setup, 'setup');
-    expose(done, 'done');
     expose(on_event, 'on_event');
 
     /*
@@ -1952,22 +1951,21 @@
     function add_start_callback(callback) {
         tests.start_callbacks.push(callback);
     }
+    expose(add_start_callback, 'add_start_callback');
 
     function add_test_state_callback(callback) {
         tests.test_state_callbacks.push(callback);
     }
+    expose(add_test_state_callback, 'add_test_state_callback');
 
     function add_result_callback(callback) {
         tests.test_done_callbacks.push(callback);
     }
+    expose(add_result_callback, 'add_result_callback');
 
     function add_completion_callback(callback) {
         tests.all_done_callbacks.push(callback);
     }
-
-    expose(add_start_callback, 'add_start_callback');
-    expose(add_test_state_callback, 'add_test_state_callback');
-    expose(add_result_callback, 'add_result_callback');
     expose(add_completion_callback, 'add_completion_callback');
 
     /*
