@@ -116,6 +116,16 @@
 
     test(function()
     {
+        assert_does_not_throw(function() {/* an empty function does not throw anything */}, "empty function does not throw");
+    }, "Test assert_does_not_throw passes")
+
+    test(function()
+    {
+        assert_does_not_throw(function() {throw new Error("some error")}, "function throws an error and makes assert fail");
+    }, "Test assert_does_not_throw fails")
+
+    test(function()
+    {
         var a = document.createElement("a")
         var b = document.createElement("b")
         assert_throws("NOT_FOUND_ERR", function(){a.removeChild(b)});
