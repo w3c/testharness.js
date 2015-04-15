@@ -1123,7 +1123,7 @@ IdlInterface.prototype.do_member_operation_asserts = function(memberHolderObject
     // "Return the length of the shortest argument list of the
     // entries in S."
     //
-    // TODO: Doesn't handle overloading or variadic arguments.
+    // TODO: Doesn't handle overloading.
     assert_equals(memberHolderObject[member.name].length,
         member.arguments.filter(function(arg) {
             return !arg.optional;
@@ -1620,6 +1620,11 @@ function IdlInterfaceMember(obj)
     }
 
     this.isUnforgeable = this.has_extended_attribute("Unforgeable");
+
+    if ("arguments" in this) {
+        // Flag any variadic arguments as optional, since they are.
+        this.arguments.forEach(arg => arg.optional = arg.optional || arg.variadic);
+    }
 }
 
 //@}
