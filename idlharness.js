@@ -1440,8 +1440,6 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                 }
             }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + member.name + '" with the proper type (' + i + ')');
         }
-        // TODO: This is wrong if there are multiple operations with the same
-        // identifier.
         // TODO: Test passing arguments of the wrong type.
         if (member.type == "operation" && member.name && member.arguments.length)
         {
@@ -1463,7 +1461,7 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                 var args = [];
                 for (var i = 0; i < member.arguments.length; i++)
                 {
-                    if (member.arguments[i].optional)
+                    if (member.arguments[i].optional || member.arguments[i].variadic)
                     {
                         break;
                     }
