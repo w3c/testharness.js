@@ -1235,13 +1235,14 @@ IdlInterface.prototype.test_members = function()
         if (!member.name || member.type != "operation") {
             continue;
         }
-        length = member.arguments.filter(function(arg) {
-            return !arg.optional || arg.variadic;
+        var length = member.arguments.filter(function(arg) {
+            return !arg.optional;
         }).length;
         if (!operationLengths.hasOwnProperty(member.name)) {
             operationLengths[member.name] = length;
         } else {
-            operationLengths[member.name] = min(operationLengths[member.name], length);
+            operationLengths[member.name] = length < operationLengths[member.name]
+                ? length : operationLengths[member.name];
         }
     }
 
