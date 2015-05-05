@@ -1047,7 +1047,7 @@ IdlInterface.prototype.test_member_attribute = function(member)
 };
 
 //@}
-IdlInterface.prototype.test_member_operation = function(member)
+IdlInterface.prototype.test_member_operation = function(member, length)
 //@{
 {
     test(function()
@@ -1091,14 +1091,14 @@ IdlInterface.prototype.test_member_operation = function(member)
             memberHolderObject = self[this.name].prototype;
         }
 
-        this.do_member_operation_asserts(memberHolderObject, member);
+        this.do_member_operation_asserts(memberHolderObject, member, length);
     }.bind(this), this.name + " interface: operation " + member.name +
     "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
     ")");
 };
 
 //@}
-IdlInterface.prototype.do_member_operation_asserts = function(memberHolderObject, member)
+IdlInterface.prototype.do_member_operation_asserts = function(memberHolderObject, member, length)
 //@{
 {
     var operationUnforgeable = member.isUnforgeable;
@@ -1122,13 +1122,8 @@ IdlInterface.prototype.do_member_operation_asserts = function(memberHolderObject
     // ". . .
     // "Return the length of the shortest argument list of the
     // entries in S."
-    //
-    // TODO: Doesn't handle overloading or variadic arguments.
-    assert_equals(memberHolderObject[member.name].length,
-        member.arguments.filter(function(arg) {
-            return !arg.optional;
-        }).length,
-        "property has wrong .length");
+    assert_equals(memberHolderObject[member.name].length, length,
+                  "property has wrong .length");
 
     // Make some suitable arguments
     var args = member.arguments.map(function(arg) {
@@ -1233,6 +1228,24 @@ IdlInterface.prototype.test_member_stringifier = function(member)
 IdlInterface.prototype.test_members = function()
 //@{
 {
+    var operationLengths = {}
+    for (var i = 0; i < this.members.length; i++) {
+        var member = this.members[i];
+
+        if (!member.name || member.type != "operation") {
+            continue;
+        }
+        var length = member.arguments.filter(function(arg) {
+            return !arg.optional;
+        }).length;
+        if (!operationLengths.hasOwnProperty(member.name)) {
+            operationLengths[member.name] = length;
+        } else {
+            operationLengths[member.name] = length < operationLengths[member.name]
+                ? length : operationLengths[member.name];
+        }
+    }
+
     for (var i = 0; i < this.members.length; i++)
     {
         var member = this.members[i];
@@ -1262,7 +1275,7 @@ IdlInterface.prototype.test_members = function()
             if (member.name) {
                 if (!member.isUnforgeable)
                 {
-                    this.test_member_operation(member);
+                    this.test_member_operation(member, operationLengths[member.name]);
                 }
             } else if (member.stringifier) {
                 this.test_member_stringifier(member);
