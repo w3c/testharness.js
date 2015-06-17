@@ -515,6 +515,21 @@ policies and contribution forms [3].
         return test_obj;
     }
 
+    function test_on(func, obj, event, name, properties) {
+        var t = async_test(name, properties);
+        obj.addEventListener(event, function f(e) {
+            t.add_cleanup(function() {obj.removeEventListener(f)});
+            t.step(function() {
+                func.call(t, e);
+            });
+            t.done();
+        });
+    }
+
+    function test_onload(func, name, properties) {
+        test_on(func, window, "load", name, properties);
+    }
+
     function promise_test(func, name, properties) {
         var test = async_test(name, properties);
         Promise.resolve(test.step(func, test, test))
@@ -652,6 +667,8 @@ policies and contribution forms [3].
 
     expose(test, 'test');
     expose(async_test, 'async_test');
+    expose(test_on, 'test_on');
+    expose(test_onload, 'test_onload');
     expose(promise_test, 'promise_test');
     expose(promise_rejects, 'promise_rejects');
     expose(generate_tests, 'generate_tests');

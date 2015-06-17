@@ -29,6 +29,14 @@
     var load_test_attr = async_test("body element fires the onload event set from the attribute");
 </script>
 <script>
+    test_on(function(e) {
+                assert_equals(e.type, "DOMContentLoaded");
+            }, window, "DOMContentLoaded", "test_on test for window DOMContentLoaded event");
+
+    test_onload(function () {
+                    assert_true(true)
+                }, "test_onload test");
+
     function bodyElement()
     {
         assert_equals(document.body, document.getElementsByTagName("body")[0]);
