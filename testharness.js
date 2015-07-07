@@ -891,8 +891,9 @@ policies and contribution forms [3].
 
              var p;
              for (p in actual) {
-                 assert(expected.hasOwnProperty(p), "assert_object_equals", description,
-                                                    "unexpected property ${p}", {p:p});
+                 assert(expected.hasOwnProperty(p) === actual.hasOwnProperty(p),
+                        "assert_object_equals", description,
+                        "unexpected property ${p}", {p:p});
 
                  if (typeof actual[p] === "object" && actual[p] !== null) {
                      if (stack.indexOf(actual[p]) === -1) {
@@ -905,7 +906,7 @@ policies and contribution forms [3].
                  }
              }
              for (p in expected) {
-                 assert(actual.hasOwnProperty(p),
+                 assert(actual.hasOwnProperty(p) === expected.hasOwnProperty(p),
                         "assert_object_equals", description,
                         "expected property ${p} missing", {p:p});
              }
