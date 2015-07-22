@@ -1165,6 +1165,19 @@ policies and contribution forms [3].
                                     {func:func, actual:e, actual_name:e.name,
                                      expected:code,
                                      expected_name:code.name});
+                if (code.message) {
+                    if (code.message.test) {
+                        assert(code.message.test(e.message),
+                               "assert_throws", description,
+                               "${func} threw ${actual}; expected message (${actual_message}) to match ${expected}",
+                               {func:func, actual:e, actual_message:e.message, expected:code.message});
+                    } else {
+                        assert(code.message === e.message,
+                               "assert_throws", description,
+                               "${func} threw ${actual}; expected message (${actual_message}) to equal ${expected}",
+                               {func:func, actual:e, actual_message:e.message, expected:code.message});
+                    }
+                }
                 return;
             }
 
