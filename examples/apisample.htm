@@ -68,12 +68,6 @@
     }
     test(basicAssertArrayEquals, "basic assert_array_equals test");
 
-    function basicAssertObjectEquals()
-    {
-        assert_object_equals([1, 2, [1, 2]], { 0: 1, 1: 2, 2: { 0: 1, 1: 2} }, "array is equal to object")
-    }
-    test(basicAssertObjectEquals, "basic assert_object_equals test");
-
     function basicAssertApproxEquals()
     {
         assert_approx_equals(10, 11, 1, "10 is approximately (+/- 1) 11")
