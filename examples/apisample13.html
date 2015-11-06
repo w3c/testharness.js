@@ -20,6 +20,16 @@ test(
     },
     "Promises are supported in your browser");
 
+var promise_created_synchronously = true;
+promise_test(function (test) {
+    return new Promise(function (accept, reject) {
+        assert_true(promise_created_synchronously,
+            "Promise must be created synchronously at the time 'promise_test()' was invoked.");
+        accept();
+    });
+}, "First 'promise_test()' must not be deferred.");
+promise_created_synchronously = false;
+
 promise_test(
     function() {
         return Promise.resolve("x")

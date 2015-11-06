@@ -517,13 +517,11 @@ policies and contribution forms [3].
 
     function promise_test(func, name, properties) {
         var test = async_test(name, properties);
-        // If there is no promise tests queue make one.
-        test.step(function() {
-            if (!tests.promise_tests) {
-                tests.promise_tests = Promise.resolve();
-            }
-        });
-        tests.promise_tests = tests.promise_tests.then(function() {
+
+        // Deferred function which begins this promise_test by invoking the given 'func'.
+        // The value returned by the 'func' is coerced to a Promise.  When that Promise
+        // resolves, this test completes/fails as appropriate.     
+        var begin = function() {
             return Promise.resolve(test.step(func, test, test))
                 .then(
                     function() {
@@ -537,6 +535,13 @@ policies and contribution forms [3].
                         assert(false, "promise_test", null,
                                "Unhandled rejection with value: ${value}", {value:value});
                     }));
+        };
+
+        test.step(function () {
+            // This test becomes the tail of the 'promise_tests' chain.
+            tests.promise_tests = tests.promise_tests
+                ? tests.promise_tests.then(begin)   // Await pending tests, then begin this test.
+                : begin();                          // First 'promise_test' always begins promptly.
         });
     }
 
