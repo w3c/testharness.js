@@ -1811,6 +1811,9 @@ policies and contribution forms [3].
 
     Tests.prototype.push = function(test)
     {
+        if (this.tests_cleanup) {
+          test.add_cleanup(this.tests_cleanup);
+        }
         if (this.phase < this.phases.HAVE_TESTS) {
             this.start();
         }
@@ -1916,6 +1919,11 @@ policies and contribution forms [3].
         tests.fetch_tests_from_worker(port);
     }
     expose(fetch_tests_from_worker, 'fetch_tests_from_worker');
+
+    function tests_cleanup(func) {
+      tests.tests_cleanup = func;
+    }
+    expose(tests_cleanup, 'tests_cleanup');
 
     function timeout() {
         if (tests.timeout_length === null) {
