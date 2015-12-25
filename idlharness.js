@@ -1458,37 +1458,39 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
         // TODO: Test passing arguments of the wrong type.
         if (member.type == "operation" && member.name && member.arguments.length)
         {
-            test(function()
-            {
-                assert_equals(exception, null, "Unexpected exception when evaluating object");
-                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-                if (!member["static"]) {
+            if (member["static"]) {
+                test(function()
+                {
+                    assert_equals(exception, null, "Unexpected exception when evaluating object");
+                    assert_equals(typeof obj, expected_typeof, "wrong typeof object");
                     if (!this.is_global() && !member.isUnforgeable) {
                         assert_inherits(obj, member.name);
                     } else {
                         assert_own_property(obj, member.name);
                     }
-                }
-                else
-                {
+
+                    var minLength = minOverloadLength(this.members.filter(function(m) {
+                        return m.type == "operation" && m.name == member.name;
+                    }));
+                    var args = [];
+                    for (var i = 0; i < minLength; i++) {
+                        assert_throws(new TypeError(), function()
+                        {
+                            obj[member.name].apply(obj, args);
+                        }.bind(this), "Called with " + i + " arguments");
+
+                        args.push(create_suitable_object(member.arguments[i].idlType));
+                    }
+                }.bind(this), this.name + " interface: calling " + member.name +
+                "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
+                ") on " + desc + " with too few arguments must throw TypeError");
+            } else {
+                test(function() {
+                    assert_equals(exception, null, "Unexpected exception when evaluating object");
+                    assert_equals(typeof obj, expected_typeof, "wrong typeof object");
                     assert_false(member.name in obj);
-                }
-
-                var minLength = minOverloadLength(this.members.filter(function(m) {
-                    return m.type == "operation" && m.name == member.name;
-                }));
-                var args = [];
-                for (var i = 0; i < minLength; i++) {
-                    assert_throws(new TypeError(), function()
-                    {
-                        obj[member.name].apply(obj, args);
-                    }.bind(this), "Called with " + i + " arguments");
-
-                    args.push(create_suitable_object(member.arguments[i].idlType));
-                }
-            }.bind(this), this.name + " interface: calling " + member.name +
-            "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
-            ") on " + desc + " with too few arguments must throw TypeError");
+                }.bind(this), this.name + " interface: static operation " + member.name + " must not be a property on " + desc);
+            }
         }
     }
 };
