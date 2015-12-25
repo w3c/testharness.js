@@ -1381,6 +1381,10 @@ IdlInterface.prototype.test_primary_interface_of = function(desc, obj, exception
 IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expected_typeof)
 //@{
 {
+    // A map from operations' names to members, for tests that are only related to the
+    // instances' properties' descriptors.
+    var operations = {};
+
     // TODO: Indexed and named properties, more checks on interface members
     this.already_tested = true;
 
@@ -1396,21 +1400,21 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                 this.do_interface_attribute_asserts(obj, member);
             }.bind(this), this.name + " interface: " + desc + ' must have own property "' + member.name + '"');
         }
-        else if (member.type == "operation" &&
-                 member.name &&
-                 member.isUnforgeable)
-        {
-            test(function()
-            {
-                assert_equals(exception, null, "Unexpected exception when evaluating object");
-                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-                assert_own_property(obj, member.name,
-                                    "Doesn't have the unforgeable operation property");
-                this.do_member_operation_asserts(obj, member);
-            }.bind(this), this.name + " interface: " + desc + ' must have own property "' + member.name + '"');
+        else if (member.type == "operation" && member.name) {
+            if (member.name in operations) {
+                if (operations[member.name].isUnforgeable != member.isUnforgeable) {
+                    throw "All overloads of " + this.name + "." + member.name + " should be unforgeable or none of them.";
+                }
+                if (operations[member.name]["static"] != member["static"]) {
+                    throw "All overloads of " + this.name + "." + member.name + "should be static or none of them.";
+                }
+            } else {
+                // We just take the first we find. This is safe because only their name, forgeableness
+                // and staticness are later used.
+                operations[member.name] = member;
+            }
         }
         else if ((member.type == "const"
-        || member.type == "attribute" && !member["static"]
         || member.type == "operation")
         && member.name)
         {
@@ -1447,50 +1451,68 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
                         this.array.assert_type_is(property, member.idlType);
                     }
                 }
-                if (member.type == "operation")
-                {
-                    assert_equals(typeof obj[member.name], "function");
-                }
-            }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + member.name + '" with the proper type (' + i + ')');
+            }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + member.name + '" with the proper type');
         }
         // TODO: This is wrong if there are multiple operations with the same
         // identifier.
         // TODO: Test passing arguments of the wrong type.
-        if (member.type == "operation" && member.name && member.arguments.length)
+        if (member.type == "operation" &&
+            !member["static"] && member.name && member.arguments.length)
         {
-            if (member["static"]) {
-                test(function()
-                {
-                    assert_equals(exception, null, "Unexpected exception when evaluating object");
-                    assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-                    if (!this.is_global() && !member.isUnforgeable) {
-                        assert_inherits(obj, member.name);
-                    } else {
-                        assert_own_property(obj, member.name);
-                    }
+            test(function()
+            {
+                assert_equals(exception, null, "Unexpected exception when evaluating object");
+                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
+                if (!this.is_global() && !member.isUnforgeable) {
+                    assert_inherits(obj, member.name);
+                } else {
+                    assert_own_property(obj, member.name);
+                }
 
-                    var minLength = minOverloadLength(this.members.filter(function(m) {
-                        return m.type == "operation" && m.name == member.name;
-                    }));
-                    var args = [];
-                    for (var i = 0; i < minLength; i++) {
-                        assert_throws(new TypeError(), function()
-                        {
-                            obj[member.name].apply(obj, args);
-                        }.bind(this), "Called with " + i + " arguments");
+                var minLength = minOverloadLength(this.members.filter(function(m) {
+                    return m.type == "operation" && m.name == member.name;
+                }));
+                var args = [];
+                for (var i = 0; i < minLength; i++) {
+                    assert_throws(new TypeError(), function()
+                    {
+                        obj[member.name].apply(obj, args);
+                    }.bind(this), "Called with " + i + " arguments");
 
-                        args.push(create_suitable_object(member.arguments[i].idlType));
-                    }
-                }.bind(this), this.name + " interface: calling " + member.name +
-                "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
-                ") on " + desc + " with too few arguments must throw TypeError");
-            } else {
-                test(function() {
-                    assert_equals(exception, null, "Unexpected exception when evaluating object");
-                    assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-                    assert_false(member.name in obj);
-                }.bind(this), this.name + " interface: static operation " + member.name + " must not be a property on " + desc);
-            }
+                    args.push(create_suitable_object(member.arguments[i].idlType));
+                }
+            }.bind(this), this.name + " interface: calling " + member.name +
+            "(" + member.arguments.map(function(m) { return m.idlType.idlType; }) +
+            ") on " + desc + " with too few arguments must throw TypeError");
+        }
+    }
+
+    for (var name in operations) {
+        if (operations[name].isUnforgeable) {
+            test(function() {
+                assert_equals(exception, null, "Unexpected exception when evaluating object");
+                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
+                assert_own_property(obj, name,
+                                    "Doesn't have the unforgeable operation property");
+                this.do_member_operation_asserts(obj, operations[name]);
+            }.bind(this), this.name + " interface: " + desc + ' must have own property "' + name + '"');
+        } else if (operations[name]["static"]) {
+            test(function() {
+                assert_equals(exception, null, "Unexpected exception when evaluating object");
+                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
+                assert_false(name in obj);
+            }.bind(this), this.name + " interface: static operation " + name + " must not be a property on " + desc);
+        } else {
+            test(function() {
+                assert_equals(exception, null, "Unexpected exception when evaluating object");
+                assert_equals(typeof obj, expected_typeof, "wrong typeof object");
+                if (!this.is_global()) {
+                    assert_inherits(obj, member.name);
+                } else {
+                    assert_own_property(obj, member.name);
+                }
+                assert_equals(typeof obj[member.name], "function");
+            }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + name + '" with the proper type');
         }
     }
 };
