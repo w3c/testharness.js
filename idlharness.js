@@ -1410,7 +1410,7 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
             }.bind(this), this.name + " interface: " + desc + ' must have own property "' + member.name + '"');
         }
         else if ((member.type == "const"
-        || member.type == "attribute"
+        || member.type == "attribute" && !member["static"]
         || member.type == "operation")
         && member.name)
         {
@@ -1418,40 +1418,38 @@ IdlInterface.prototype.test_interface_of = function(desc, obj, exception, expect
             {
                 assert_equals(exception, null, "Unexpected exception when evaluating object");
                 assert_equals(typeof obj, expected_typeof, "wrong typeof object");
-                if (!member["static"]) {
-                    if (!this.is_global()) {
-                        assert_inherits(obj, member.name);
-                    } else {
-                        assert_own_property(obj, member.name);
-                    }
+                if (!this.is_global()) {
+                    assert_inherits(obj, member.name);
+                } else {
+                    assert_own_property(obj, member.name);
+                }
 
-                    if (member.type == "const")
+                if (member.type == "const")
+                {
+                    assert_equals(obj[member.name], constValue(member.value));
+                }
+                if (member.type == "attribute")
+                {
+                    // Attributes are accessor properties, so they might
+                    // legitimately throw an exception rather than returning
+                    // anything.
+                    var property, thrown = false;
+                    try
                     {
-                        assert_equals(obj[member.name], constValue(member.value));
+                        property = obj[member.name];
                     }
-                    if (member.type == "attribute")
+                    catch (e)
                     {
-                        // Attributes are accessor properties, so they might
-                        // legitimately throw an exception rather than returning
-                        // anything.
-                        var property, thrown = false;
-                        try
-                        {
-                            property = obj[member.name];
-                        }
-                        catch (e)
-                        {
-                            thrown = true;
-                        }
-                        if (!thrown)
-                        {
-                            this.array.assert_type_is(property, member.idlType);
-                        }
+                        thrown = true;
                     }
-                    if (member.type == "operation")
+                    if (!thrown)
                     {
-                        assert_equals(typeof obj[member.name], "function");
+                        this.array.assert_type_is(property, member.idlType);
                     }
+                }
+                if (member.type == "operation")
+                {
+                    assert_equals(typeof obj[member.name], "function");
                 }
             }.bind(this), this.name + " interface: " + desc + ' must inherit property "' + member.name + '" with the proper type (' + i + ')');
         }
