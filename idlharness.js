@@ -1071,8 +1071,9 @@ IdlInterface.prototype.test_member_attribute = function(member)
                 gotValue = false;
             }
             if (gotValue) {
-                assert_equals(propVal, getter.call(undefined),
-                              "Gets on a global should not require an explicit this");
+                assert_throws(new TypeError(), function() {
+                    getter.call(undefined);
+                }, "Gets on a global without an explicit this should throw TypeError");
             }
 
             this.do_interface_attribute_asserts(self, member);
