@@ -76,23 +76,26 @@ Assertions can be added to the test by calling the step method of the test
 object with a function containing the test assertions:
 
 ```js
-t.step(function() {assert_true(true)});
+t.step(function() {assert_equals(1+1, 2)});
 ```
 
-When all the steps are complete, the done() method must be called:
+When all the steps are complete, the `done()` method must be called:
 
 ```js
 t.done();
 ```
 
-As a convenience, async_test can also takes a function as first argument.
+As a convenience, `async_test` can also takes a function as first argument.
 This function is called with the test object as both its `this` object and
-first argument. The above example can be rewritten as:
+first argument. Thus we can write:
 
 ```js
 async_test(function(t) {
-    object.some_event = function() {
-        t.step(function (){assert_true(true); t.done();});
+    object.some_event = function(e) {
+        t.step(function() {
+          assert_true(e.a);
+          t.done();
+        });
     };
 }, "Simple async test");
 ```
@@ -119,6 +122,14 @@ object.some_event = t.unreached_func("some_event should not fire");
 
 Keep in mind that other tests could start executing before an Asynchronous
 Test is finished.
+
+Finally, for cases where you want to simply pass the test when a callback is
+called, there is `step_func_done`, which will generate a step function that
+calls `done()`. For example:
+
+```js
+object.some_event = t.step_func_done();
+```
 
 ## Promise Tests ##
 
