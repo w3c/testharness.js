@@ -332,7 +332,7 @@ async_test(function(t) {
   document.addEventListener("DOMContentLoaded", t.step_func(function() {
     assert_false(gotEvent, "Unexpected DOMContentLoaded event");
     gotEvent = true;
-    t.step_timeout(function() { t.done(); }, 100);
+    t.step_timeout(function() { t.done(); }, 2000);
   });
 }, "Only one DOMContentLoaded");
 ```
