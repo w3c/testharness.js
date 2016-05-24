@@ -343,6 +343,9 @@ delay; e.g., in the above case a timeout multiplier of 2 would cause a
 pause of 4000ms before calling the callback. This makes it less likely
 to produce unstable results in slow configurations.
 
+Note that timeouts generally need to be a few seconds long in order to
+produce stable results in all test environments.
+
 For single-page tests, `step_timeout` is also available as a global
 function.
 
