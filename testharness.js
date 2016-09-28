@@ -1247,13 +1247,20 @@ policies and contribution forms [3].
                 ReadOnlyError: 0,
                 VersionError: 0,
                 OperationError: 0,
+
+                // JS built-in errors:
+                TypeError: 0,
             };
 
             if (!(name in name_code_map)) {
                 throw new AssertionError('Test bug: unrecognized DOMException code "' + code + '" passed to assert_throws()');
             }
 
-            var required_props = { code: name_code_map[name] };
+            var required_props = {};
+            if (name !== 'TypeError') {
+              // DOMExceptions should have a .code member.
+              required_props.code = name_code_map[name];
+            }
 
             if (required_props.code === 0 ||
                (typeof e == "object" &&
