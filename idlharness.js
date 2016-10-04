@@ -447,6 +447,14 @@ IdlArray.prototype.assert_type_is = function(value, type)
         return;
     }
 
+    if (type.generic === "Promise") {
+        assert_own_property(value, "then", "Attribute with a Promise type has a then property");
+        // TODO: Ideally, we would check on project fulfillment
+        // that we get the right type
+        // but that would require making the type check async
+        return;
+    }
+
     type = type.idlType;
 
     switch(type)
@@ -546,7 +554,8 @@ IdlArray.prototype.assert_type_is = function(value, type)
 
         case "object":
             assert_true(typeof value == "object" || typeof value == "function", "wrong type: not object or function");
-            return;
+             return;
+
     }
 
     if (!(type in this.members))
