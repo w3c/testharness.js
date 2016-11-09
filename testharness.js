@@ -2684,6 +2684,8 @@ policies and contribution forms [3].
             tests.status.message = e.message;
             tests.status.stack = e.stack;
         }
+    };
+
     addEventListener("error", error_handler, false);
     addEventListener("unhandledrejection", function(e){ error_handler(e.reason); }, false);
 
