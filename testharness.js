@@ -611,7 +611,7 @@ policies and contribution forms [3].
 
         function stop_watching() {
             for (var i = 0; i < eventTypes.length; i++) {
-                watchedNode.removeEventListener(eventTypes[i], eventHandler);
+                watchedNode.removeEventListener(eventTypes[i], eventHandler, false);
             }
         };
 
