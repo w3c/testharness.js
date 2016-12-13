@@ -613,6 +613,11 @@ policies and contribution forms [3].
             for (var i = 0; i < eventTypes.length; i++) {
                 watchedNode.removeEventListener(eventTypes[i], eventHandler, false);
             }
+
+            if (waitingFor) {
+                waitingFor.reject(new Error('Test ended while waiting for event'));
+                waitingFor = null;
+            }
         };
 
         test.add_cleanup(stop_watching);
