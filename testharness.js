@@ -916,34 +916,47 @@ policies and contribution forms [3].
 
     function assert_object_equals(actual, expected, description)
     {
-         //This needs to be improved a great deal
-         function check_equal(actual, expected, stack)
-         {
-             stack.push(actual);
+        /*
+         * Recursively test if two objects have equal properties. Does not
+         * require the objects or their descendents to be the same object.
+         * May not be fully robust.
+         */
+        function check_equal(actual, expected, stack, path)
+        {
+            var pathStr = path.length ? "property [" + path.join("][") + "]: " : "";
 
-             var p;
-             for (p in actual) {
-                 assert(expected.hasOwnProperty(p), "assert_object_equals", description,
-                                                    "unexpected property ${p}", {p:p});
+            if (typeof actual !== typeof expected) {
+                assert(false, "assert_object_equals", description,
+                              pathStr + "expected (" + typeof expected + ") ${expected} but got (" + typeof actual + ") ${actual}",
+                              {expected:expected, actual:actual});
+                return;
+            }
+            if (typeof expected !== "object" || expected === null || actual === null) {
+                assert(same_value(actual, expected), "assert_object_equals", description,
+                                                     pathStr + "expected ${expected} but got ${actual}",
+                                                     {expected:expected, actual:actual});
+                return;
+            }
 
-                 if (typeof actual[p] === "object" && actual[p] !== null) {
-                     if (stack.indexOf(actual[p]) === -1) {
-                         check_equal(actual[p], expected[p], stack);
-                     }
-                 } else {
-                     assert(same_value(actual[p], expected[p]), "assert_object_equals", description,
-                                                       "property ${p} expected ${expected} got ${actual}",
-                                                       {p:p, expected:expected, actual:actual});
-                 }
-             }
-             for (p in expected) {
-                 assert(actual.hasOwnProperty(p),
-                        "assert_object_equals", description,
-                        "expected property ${p} missing", {p:p});
-             }
-             stack.pop();
-         }
-         check_equal(actual, expected, []);
+            stack.push(actual);
+            for (var p in actual) {
+                assert(expected.hasOwnProperty(p), "assert_object_equals", description,
+                                                   pathStr + "unexpected property ${p}", {p:p});
+
+                if (typeof actual[p] === "object" && actual[p] !== null && stack.indexOf(actual[p]) === -1)
+                    continue;
+                path.push(JSON.stringify(p));
+                check_equal(actual[p], expected[p], stack, path);
+                path.pop();
+            }
+            for (var p in expected) {
+                assert(actual.hasOwnProperty(p),
+                       "assert_object_equals", description,
+                       pathStr + "expected property ${p} missing", {p:p});
+            }
+            stack.pop();
+        }
+        check_equal(actual, expected, [], []);
     }
     expose(assert_object_equals, "assert_object_equals");
 
