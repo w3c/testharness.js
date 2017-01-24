@@ -312,6 +312,26 @@ the test result is known. For example
   }, "Calling document.getElementById with a null argument.");
 ```
 
+Sometimes you need to run the same cleanup function for each of your tests. In
+this case you can call `tests_cleanup()` at the top of your test file to add a
+clean up function to each tests. For example
+
+```js
+tests_cleanup(function() {delete window.some_global});
+
+test(function() {
+         window.some_global = "example1";
+         assert_true(false);
+     });
+
+test(function() {
+         window.some_global = "example2";
+         assert_true(false);
+     });
+```
+
+In the example above `window.some_global` will be deleted after each test.
+
 ## Timeouts in Tests ##
 
 In general the use of timeouts in tests is discouraged because this is
