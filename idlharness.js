@@ -784,7 +784,8 @@ IdlInterface.prototype.test_self = function()
         // value is an object called the interface object.
         // The property has the attributes { [[Writable]]: true,
         // [[Enumerable]]: false, [[Configurable]]: true }."
-        if (this.is_callback() && !this.has_constants()) {
+        if ((this.is_callback() && !this.has_constants())
+        || (!this.is_callback() && this.has_extended_attribute("NoInterfaceObject"))) {
             return;
         }
 
