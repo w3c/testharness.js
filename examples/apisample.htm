@@ -167,9 +167,18 @@
     test(function() {assert_equals(window.global, undefined)},
          "Test that cleanup handlers from previous test ran");
 
+    test(function() {
+      var a = Object.setPrototypeOf({p: 1}, {q: 2});
+      var b = Object.setPrototypeOf({p: 1}, {q: 2});
+      assert_object_equals(a, b, "properties on object and prototypes are compared");
+    }, "assert_object_equals handles properties on prototype chain");
+
+    test(function() {
+      var a = Object.setPrototypeOf({p: 1}, {q: 2});
+      var b = {p: 1, q: 2};
+      assert_object_equals(a, b, "property ownership differences cause failure");
+    }, "assert_object_equals - expected to fail");
+
 </script>
 </body>
 </html>
-
-
-
