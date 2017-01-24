@@ -1100,6 +1100,17 @@ policies and contribution forms [3].
     }
     expose(assert_regexp_match, "assert_regexp_match");
 
+    function assert_not_regexp_match(actual, expected, description) {
+        /*
+         * Test if a string (actual) does not match a regexp (expected)
+         */
+        assert(expected.test(actual) === false,
+               "assert_not_regexp_match", description,
+               "got disallowed value ${actual}",
+               {actual:actual});
+    }
+    expose(assert_not_regexp_match, "assert_not_regexp_match");
+
     function assert_class_string(object, class_string, description) {
         assert_equals({}.toString.call(object), "[object " + class_string + "]",
                       description);
