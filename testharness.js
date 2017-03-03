@@ -50,6 +50,9 @@ policies and contribution forms [3].
      *
      *   // Should return the global scope object.
      *   object global_scope();
+     *
+     *   // Should return the environment name.
+     *   DOMString environment_name();
      * };
      */
 
@@ -255,6 +258,10 @@ policies and contribution forms [3].
         return window;
     };
 
+    WindowTestEnvironment.prototype.environment_name = function() {
+        return "Window";
+    };
+
     /*
      * Base TestEnvironment implementation for a generic web worker.
      *
@@ -351,6 +358,10 @@ policies and contribution forms [3].
         return self;
     };
 
+    WorkerTestEnvironment.prototype.environment_name = function() {
+        return "Worker";
+    };
+
     /*
      * Dedicated web workers.
      * https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope
@@ -372,6 +383,10 @@ policies and contribution forms [3].
         // In the absence of an onload notification, we a require dedicated
         // workers to explicitly signal when the tests are done.
         tests.wait_for_finish = true;
+    };
+
+    DedicatedWorkerTestEnvironment.prototype.environment_name = function() {
+        return "DedicatedWorker";
     };
 
     /*
@@ -398,6 +413,10 @@ policies and contribution forms [3].
         // In the absence of an onload notification, we a require shared
         // workers to explicitly signal when the tests are done.
         tests.wait_for_finish = true;
+    };
+
+    SharedWorkerTestEnvironment.prototype.environment_name = function() {
+        return "SharedWorker";
     };
 
     /*
@@ -455,6 +474,10 @@ policies and contribution forms [3].
         }
     };
 
+    ServiceWorkerTestEnvironment.prototype.environment_name = function() {
+        return "ServiceWorker";
+    };
+
     function create_test_environment() {
         if ('document' in self) {
             return new WindowTestEnvironment();
@@ -497,7 +520,7 @@ policies and contribution forms [3].
     {
         var test_name = name ? name : test_environment.next_default_test_name();
         properties = properties ? properties : {};
-        var test_obj = new Test(test_name, properties);
+        var test_obj = new Test(test_name, test_environment.environment_name(), properties);
         test_obj.step(func, test_obj, test_obj);
         if (test_obj.phase === test_obj.phases.STARTED) {
             test_obj.done();
@@ -513,7 +536,7 @@ policies and contribution forms [3].
         }
         var test_name = name ? name : test_environment.next_default_test_name();
         properties = properties ? properties : {};
-        var test_obj = new Test(test_name, properties);
+        var test_obj = new Test(test_name, test_environment.environment_name(), properties);
         if (func) {
             test_obj.step(func, test_obj, test_obj);
         }
@@ -1319,12 +1342,13 @@ policies and contribution forms [3].
     }
     expose(assert_any, "assert_any");
 
-    function Test(name, properties)
+    function Test(name, scope, properties)
     {
         if (tests.file_is_test && tests.tests.length) {
             throw new Error("Tried to create a test with file_is_test");
         }
-        this.name = name;
+
+        this.name = (scope == "Window") ? name : "[" + scope + "] " + name;
 
         this.phase = this.phases.INITIAL;
 
