@@ -504,6 +504,19 @@ policies and contribution forms [3].
         return 'ServiceWorker' in self && worker instanceof ServiceWorker;
     }
 
+    function enforce_https() {
+        var pos = 0;
+        if (location && location.pathname) {
+            pos = location.pathname.indexOf(".https.html");
+            if ((pos !== -1) &&
+                (pos === (location.pathname.length - ".https.html".length)) &&
+                (location.protocol !== "https:")) {
+                assert(false, "enforce_https", "Test page must be loaded over HTTPS.",
+                        "Protocol is ${protocol}", {protocol:location.protocol});
+            }
+        }
+    }
+
     /*
      * API functions
      */
@@ -513,6 +526,7 @@ policies and contribution forms [3].
         var test_name = name ? name : test_environment.next_default_test_name();
         properties = properties ? properties : {};
         var test_obj = new Test(test_name, properties);
+        test_obj.step(enforce_https, test_obj, test_obj);
         test_obj.step(func, test_obj, test_obj);
         if (test_obj.phase === test_obj.phases.STARTED) {
             test_obj.done();
@@ -529,6 +543,7 @@ policies and contribution forms [3].
         var test_name = name ? name : test_environment.next_default_test_name();
         properties = properties ? properties : {};
         var test_obj = new Test(test_name, properties);
+        test_obj.step(enforce_https, test_obj, test_obj);
         if (func) {
             test_obj.step(func, test_obj, test_obj);
         }
