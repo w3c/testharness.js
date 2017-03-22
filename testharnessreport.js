@@ -417,4 +417,20 @@ try {
     }
 } catch (e) {
 }
+
+var Testing = (function() {
+
+  // See https://navidz.github.io/web-input-automation
+  var InputDriver = {
+    sendPointerActions : function(actions) {
+     return Promise.reject('Not Implemented');
+    }
+  }
+
+  return {
+    InputDriver: InputDriver;
+  };
+
+})();
+
 // vim: set expandtab shiftwidth=4 tabstop=4:
