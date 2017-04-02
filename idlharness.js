@@ -468,6 +468,16 @@ IdlArray.prototype.check_type_is = function(value, type)
         return true;
     }
 
+    if (type.union) {
+        for (var i = 0; i < type.idlType.length; i++) {
+            if (this.check_type_is(value, type.idlType[i]) === true) {
+                return true;
+            }
+        }
+        assert_true(false, "Attribute has value " + format_value(value)
+            + " which doesn't match any of the types in the union");
+    }
+
     if (type.nullable && value === null)
     {
         // This is fine
