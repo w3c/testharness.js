@@ -444,54 +444,93 @@ IdlArray.prototype.assert_type_is = function(value, type)
      * is fairly elaborate due to the complexity of WebIDL's types, so it's
      * best to look at the grammar to figure out what properties it might have.
      */
+    var ret = this.check_type_is(value, type);
+    if (ret === true)
+    {
+        assert_true(true, "Passed");
+    }
+    else
+    {
+        ret();
+    }
+};
+//@}
+IdlArray.prototype.check_type_is = function(value, type)
+//@{
+{
+    // Helper function that tests whether a value is valid for the given type.
+    // If it is, return true.  If not, return a callback that when called will
+    // execute the proper failing assertion.  This is weird and needs work, but
+    // union types make our lives difficult.
     if (type.idlType == "any")
     {
         // No assertions to make
-        return;
+        return true;
+    }
+
+    if (type.union) {
+        for (var i = 0; i < type.idlType.length; i++) {
+            if (this.check_type_is(value, type.idlType[i]) === true) {
+                return true;
+            }
+        }
+        assert_true(false, "Attribute has value " + format_value(value)
+            + " which doesn't match any of the types in the union");
     }
 
     if (type.nullable && value === null)
     {
         // This is fine
-        return;
+        return true;
     }
 
     if (type.array)
     {
         // TODO: not supported yet
-        return;
+        return true;
     }
 
     if (type.sequence)
     {
-        assert_true(Array.isArray(value), "is not array");
+        if (!Array.isArray(value))
+        {
+            return () => assert_true(Array.isArray(value), "is not array");
+        }
         if (!value.length)
         {
             // Nothing we can do.
-            return;
+            return true;
         }
-        this.assert_type_is(value[0], type.idlType);
-        return;
+        return this.check_type_is(value[0], type.idlType);
     }
 
     if (type.generic === "Promise") {
-        assert_true("then" in value, "Attribute with a Promise type has a then property");
+        if (!("then" in value))
+        {
+            return () => assert_true("then" in value,
+                                     "Attribute with a Promise type has a then property");
+        }
         // TODO: Ideally, we would check on project fulfillment
         // that we get the right type
         // but that would require making the type check async
-        return;
+        return true;
     }
 
     if (type.generic === "FrozenArray") {
-        assert_true(Array.isArray(value), "Value should be array");
-        assert_true(Object.isFrozen(value), "Value should be frozen");
+        if (!Array.isArray(value))
+        {
+            return () => assert_true(Array.isArray(value), "Value should be array");
+        }
+        if (!Object.isFrozen(value))
+        {
+            return () => assert_true(Object.isFrozen(value), "Value should be frozen");
+        }
         if (!value.length)
         {
             // Nothing we can do.
-            return;
+            return true;
         }
-        this.assert_type_is(value[0], type.idlType);
-        return;
+        return this.check_type_is(value[0], type.idlType);
     }
 
     type = type.idlType;
@@ -499,101 +538,226 @@ IdlArray.prototype.assert_type_is = function(value, type)
     switch(type)
     {
         case "void":
-            assert_equals(value, undefined);
-            return;
+            if (value !== undefined)
+            {
+                return () => assert_equals(value, undefined);
+            }
+            return true;
 
         case "boolean":
-            assert_equals(typeof value, "boolean");
-            return;
+            if (typeof value !== "boolean")
+            {
+                return () => assert_equals(typeof value, "boolean");
+            }
+            return true;
 
         case "byte":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(-128 <= value && value <= 127, "byte " + value + " not in range [-128, 127]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < -128 || value > 127)
+            {
+                return () => assert_true(-128 <= value && value <= 127,
+                    "byte " + value + " not in range [-128, 127]");
+            }
+            return true;
 
         case "octet":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(0 <= value && value <= 255, "octet " + value + " not in range [0, 255]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < 0 || value > 255)
+            {
+                return () => assert_true(0 <= value && value <= 255, "octet " + value + " not in range [0, 255]");
+            }
+            return true;
 
         case "short":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(-32768 <= value && value <= 32767, "short " + value + " not in range [-32768, 32767]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < -32768 || value > 32767)
+            {
+                return () => assert_true(-32768 <= value && value <= 32767, "short " + value + " not in range [-32768, 32767]");
+            }
+            return true;
 
         case "unsigned short":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(0 <= value && value <= 65535, "unsigned short " + value + " not in range [0, 65535]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < 0 || value > 65535)
+            {
+                return () => assert_true(0 <= value && value <= 65535, "unsigned short " + value + " not in range [0, 65535]");
+            }
+            return true;
 
         case "long":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(-2147483648 <= value && value <= 2147483647, "long " + value + " not in range [-2147483648, 2147483647]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < -2147483648 || value > 2147483647)
+            {
+                return () => assert_true(-2147483648 <= value && value <= 2147483647, "long " + value + " not in range [-2147483648, 2147483647]");
+            }
+            return true;
 
         case "unsigned long":
-            assert_equals(typeof value, "number");
-            assert_equals(value, Math.floor(value), "not an integer");
-            assert_true(0 <= value && value <= 4294967295, "unsigned long " + value + " not in range [0, 4294967295]");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== Math.floor(value))
+            {
+                return () => assert_equals(value, Math.floor(value), "not an integer");
+            }
+            if (value < 0 || value > 4294967295)
+            {
+                return () => assert_true(0 <= value && value <= 4294967295, "unsigned long " + value + " not in range [0, 4294967295]");
+            }
+            return true;
 
         case "long long":
-            assert_equals(typeof value, "number");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            return true;
 
         case "unsigned long long":
         case "DOMTimeStamp":
-            assert_equals(typeof value, "number");
-            assert_true(0 <= value, "unsigned long long is negative");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value < 0)
+            {
+                return () => assert_true(0 <= value, "unsigned long long is negative");
+            }
+            return true;
 
         case "float":
-            assert_equals(typeof value, "number");
-            assert_equals(value, fround(value), "float rounded to 32-bit float should be itself");
-            assert_not_equals(value, Infinity);
-            assert_not_equals(value, -Infinity);
-            assert_not_equals(value, NaN);
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== fround(value))
+            {
+                return () => assert_equals(value, fround(value), "float rounded to 32-bit float should be itself");
+            }
+            if (value === Infinity)
+            {
+                return () => assert_not_equals(value, Infinity);
+            }
+            if (value === -Infinity)
+            {
+                return () => assert_not_equals(value, -Infinity);
+            }
+            if (isNaN(value))
+            {
+                return () => assert_not_equals(value, NaN);
+            }
+            return true;
 
         case "DOMHighResTimeStamp":
         case "double":
-            assert_equals(typeof value, "number");
-            assert_not_equals(value, Infinity);
-            assert_not_equals(value, -Infinity);
-            assert_not_equals(value, NaN);
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value === Infinity)
+            {
+                return () => assert_not_equals(value, Infinity);
+            }
+            if (value === -Infinity)
+            {
+                return () => assert_not_equals(value, -Infinity);
+            }
+            if (isNaN(value))
+            {
+                return () => assert_not_equals(value, NaN);
+            }
+            return true;
 
         case "unrestricted float":
-            assert_equals(typeof value, "number");
-            assert_equals(value, fround(value), "unrestricted float rounded to 32-bit float should be itself");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            if (value !== fround(value))
+            {
+                return () => assert_equals(value, fround(value), "unrestricted float rounded to 32-bit float should be itself");
+            }
+            return true;
 
         case "unrestricted double":
-            assert_equals(typeof value, "number");
-            return;
+            if (typeof value !== "number")
+            {
+                return () => assert_equals(typeof value, "number");
+            }
+            return true;
 
         case "DOMString":
-            assert_equals(typeof value, "string");
-            return;
+            if (typeof value !== "string")
+            {
+                return () => assert_equals(typeof value, "string");
+            }
+            return true;
 
         case "ByteString":
-            assert_equals(typeof value, "string");
-            assert_regexp_match(value, /^[\x00-\x7F]*$/);
-            return;
+            if (typeof value !== "string")
+            {
+                return () => assert_equals(typeof value, "string");
+            }
+            if (!/^[\x00-\x7F]*$/.test(value))
+            {
+                return () => assert_regexp_match(value, /^[\x00-\x7F]*$/);
+            }
+            return true;
 
         case "USVString":
-            assert_equals(typeof value, "string");
-            assert_regexp_match(value, /^([\x00-\ud7ff\ue000-\uffff]|[\ud800-\udbff][\udc00-\udfff])*$/);
-            return;
+            if (typeof value !== "string")
+            {
+                return () => assert_equals(typeof value, "string");
+            }
+            var re = /^([\x00-\ud7ff\ue000-\uffff]|[\ud800-\udbff][\udc00-\udfff])*$/;
+            if (!re.test(value))
+            {
+                return () => assert_regexp_match(value, re);
+            }
+            return true;
 
         case "object":
-            assert_true(typeof value == "object" || typeof value == "function", "wrong type: not object or function");
-            return;
+            if (typeof value !== "object" && typeof value !== "function")
+            {
+                return () => assert_true(typeof value == "object" || typeof value == "function", "wrong type: not object or function");
+            }
+            return true;
     }
 
     if (!(type in this.members))
@@ -608,30 +772,38 @@ IdlArray.prototype.assert_type_is = function(value, type)
         // in an infinite loop.  TODO: This means we don't have tests for
         // NoInterfaceObject interfaces, and we also can't test objects that
         // come from another self.
-        assert_true(typeof value == "object" || typeof value == "function", "wrong type: not object or function");
+        if (typeof value !== "object" && typeof value !== "function")
+        {
+            return () => assert_true(typeof value == "object" || typeof value == "function", "wrong type: not object or function");
+        }
         if (value instanceof Object
         && !this.members[type].has_extended_attribute("NoInterfaceObject")
-        && type in self)
+        && type in self
+        && !(value instanceof self[type]))
         {
-            assert_true(value instanceof self[type], "not instanceof " + type);
+            return () => assert_true(value instanceof self[type], "not instanceof " + type);
         }
+        return true;
     }
     else if (this.members[type] instanceof IdlEnum)
     {
-        assert_equals(typeof value, "string");
+        if (typeof value !== "string")
+        {
+            return () => assert_equals(typeof value, "string");
+        }
+        return true;
     }
     else if (this.members[type] instanceof IdlDictionary)
     {
         // TODO: Test when we actually have something to test this on
+        return true;
     }
     else if (this.members[type] instanceof IdlTypedef)
     {
         // TODO: Test when we actually have something to test this on
+        return true;
     }
-    else
-    {
-        throw "Type " + type + " isn't an interface or dictionary";
-    }
+    throw "Harness bug when processing type " + type;
 };
 //@}
 
