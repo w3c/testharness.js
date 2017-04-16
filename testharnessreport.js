@@ -413,6 +413,9 @@ try {
          * JSON stringifying and reparsing it, IE fails & emits the message
          * "Could not complete the operation due to error 80700019".
          */
+        if (window.opener.testharness_properties.callback) {
+            window.opener.testharness_properties.callback(window);
+        }
         setup(JSON.parse(JSON.stringify(window.opener.testharness_properties)));
     }
 } catch (e) {
