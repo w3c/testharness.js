@@ -528,7 +528,19 @@ policies and contribution forms [3].
             });
             var promise = test.step(func, test, test);
             test.step(function() {
-                assert_not_equals(promise, undefined);
+                var message;
+
+                if (promise === undefined || promise === null) {
+                    message = "Function provided to `promise_test` did not return a value.";
+                } else if (typeof promise.then !== "function") {
+                    message = "Function provided to `promise_test` did not return a \"thenable\" value.";
+                }
+
+                if (message) {
+                    tests.status.message = message;
+                    tests.status.status = tests.status.ERROR;
+                    throw new Error('testharness.js: ' + message);
+                }
             });
             Promise.resolve(promise).then(
                     function() {
