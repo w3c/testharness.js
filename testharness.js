@@ -636,6 +636,14 @@ policies and contribution forms [3].
         test_environment.on_new_harness_properties(properties);
     }
 
+    function setup_default_test_properties(properties)
+    {
+        if (typeof properties !== "object") {
+            throw new Error("Default test properties should be an object and it is " + typeof properties);
+        }
+        tests.default_test_properties = properties;
+    }
+
     function done() {
         if (tests.tests.length === 0) {
             tests.set_file_is_test();
@@ -678,6 +686,7 @@ policies and contribution forms [3].
     expose(promise_rejects, 'promise_rejects');
     expose(generate_tests, 'generate_tests');
     expose(setup, 'setup');
+    expose(setup_default_test_properties, 'setup_default_test_properties');
     expose(done, 'done');
     expose(on_event, 'on_event');
     expose(step_timeout, 'step_timeout');
@@ -1330,6 +1339,12 @@ policies and contribution forms [3].
         this.index = null;
 
         this.properties = properties;
+        for (var attr in tests.default_test_properties) {
+            if (!(attr in this.properties)) {
+                this.properties[attr] = tests.default_test_properties[attr];
+            }
+        }
+
         var timeout = properties.timeout ? properties.timeout : settings.test_timeout;
         if (timeout !== null) {
             this.timeout_length = timeout * tests.timeout_multiplier;
@@ -1708,6 +1723,7 @@ policies and contribution forms [3].
         this.phase = this.phases.INITIAL;
 
         this.properties = {};
+        this.default_test_properties = {};
 
         this.wait_for_finish = false;
         this.processing_callbacks = false;
