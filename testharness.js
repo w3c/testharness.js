@@ -913,39 +913,6 @@ policies and contribution forms [3].
     }
     expose(assert_in_array, "assert_in_array");
 
-    function assert_object_equals(actual, expected, description)
-    {
-         //This needs to be improved a great deal
-         function check_equal(actual, expected, stack)
-         {
-             stack.push(actual);
-
-             var p;
-             for (p in actual) {
-                 assert(expected.hasOwnProperty(p), "assert_object_equals", description,
-                                                    "unexpected property ${p}", {p:p});
-
-                 if (typeof actual[p] === "object" && actual[p] !== null) {
-                     if (stack.indexOf(actual[p]) === -1) {
-                         check_equal(actual[p], expected[p], stack);
-                     }
-                 } else {
-                     assert(same_value(actual[p], expected[p]), "assert_object_equals", description,
-                                                       "property ${p} expected ${expected} got ${actual}",
-                                                       {p:p, expected:expected, actual:actual});
-                 }
-             }
-             for (p in expected) {
-                 assert(actual.hasOwnProperty(p),
-                        "assert_object_equals", description,
-                        "expected property ${p} missing", {p:p});
-             }
-             stack.pop();
-         }
-         check_equal(actual, expected, []);
-    }
-    expose(assert_object_equals, "assert_object_equals");
-
     function assert_array_equals(actual, expected, description)
     {
         assert(actual.length === expected.length,
