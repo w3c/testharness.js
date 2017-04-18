@@ -134,6 +134,41 @@
         assert_throws("TEST_ERR", function() {throw e});
     }, "Test assert_throws with non-DOM-exception expected to Fail");
 
+    test(function()
+    {
+        var o = Object.create(null, {
+            "readonly": {value: NaN, writable: false}
+        });
+        
+        assert_readonly(Object.create(o), "readonly", "must succeed for inherited properties.");
+    }, "Test assert_readonly with non-writable property.");
+
+    test(function()
+    {
+        var o = Object.create(null, {
+            "readonly": { get: function() { throw new Error('Access is denied.'); }}
+        });
+        
+        assert_readonly(o, "readonly", "must anticipate a get accessor that throws.");
+    }, "Test assert_readonly with non-settable property.");
+
+    test(function()
+    {
+        var o = { writable: NaN };
+        assert_readonly(o, "writable", "expected failure.");
+    }, "Test assert_readonly with writable property expected to fail.");
+
+    test(function()
+    {
+        var o = Object.create(null, {
+            "settable": { 
+                get: function() { return NaN; },
+                set: function() {}
+            }});
+            
+        assert_readonly(o, "settable", "expected failure.");
+    }, "Test assert_readonly with settable property expected to fail.");
+
     var t = async_test("Test step_func")
     setTimeout(
       t.step_func(

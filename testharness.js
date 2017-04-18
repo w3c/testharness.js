@@ -1150,20 +1150,55 @@ policies and contribution forms [3].
     expose(_assert_inherits("assert_inherits"), "assert_inherits");
     expose(_assert_inherits("assert_idl_attribute"), "assert_idl_attribute");
 
-    function assert_readonly(object, property_name, description)
-    {
-         var initial_value = object[property_name];
-         try {
-             //Note that this can have side effects in the case where
-             //the property has PutForwards
-             object[property_name] = initial_value + "a"; //XXX use some other value here?
-             assert(same_value(object[property_name], initial_value),
-                    "assert_readonly", description,
-                    "changing property ${p} succeeded",
-                    {p:property_name});
-         } finally {
-             object[property_name] = initial_value;
-         }
+    function getPropertyDescriptor(object, property_name) {
+        for (; object; object = Object.getPrototypeOf(object)) {
+            var descriptor = Object.getOwnPropertyDescriptor(object, property_name);
+            if (descriptor) {
+                return descriptor;
+            }
+        }
+        return undefined;
+    }
+
+    function assert_readonly(object, property_name, description) {
+        // Ensure that the property is non-writable and has no set accessor.
+        var descriptor = getPropertyDescriptor(object, property_name);
+        assert(!!descriptor, "assert_readonly", description, "property ${p} not defined on object.", {p:property_name});
+        assert(!descriptor.writable, "assert_readonly", description, "property ${p} must not be writable.", {p:property_name});
+        assert(!descriptor.set, "assert_readonly", description, "property ${p} must not define a set accessor.", {p:property_name});
+
+        // Attempt to retrieve the current proprety value to use as one of our test values below.
+        var maybe_initial_value = "initial value unknown";
+        try {
+            maybe_initial_value = object[property_name];
+        } catch (e) { 
+            // Swallow any errors.  It's valid for a property to throw (e.g., 'Access is denied').
+        }
+        
+        // Ensure that setting the property in 'strict mode' fails with a TypeError.  We attempt
+        // setting a few values that possibly involve special handling in host implementations.
+        [maybe_initial_value, undefined, null, NaN]
+            .forEach(function (value) {
+                'use strict';
+                
+                var thrown = undefined;
+                try {
+                    object[property_name] = value;
+                } catch (e) {
+                    thrown = e;
+                }
+                
+                // Ensure a TypeError was thrown.
+                assert(!!thrown, "assert_readonly", description,
+                    "setting property ${p} to ${v} must throw an error when in strict mode, but did not.",
+                    {p:property_name, v:value});
+                assert(thrown.name === "TypeError", "assert_readonly", description,
+                    "setting property ${p} to ${v} must throw a TypeError when in strict mode, but threw ${e}.",
+                    {p:property_name, v:value, e:thrown.name});
+                    
+                // Note: While it would be unusual, a readonly property can conceivably change value.
+                //       Therefore, we do not assert that the current value matches the initial value.
+            });
     }
     expose(assert_readonly, "assert_readonly");
 
